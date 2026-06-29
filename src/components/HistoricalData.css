@@ -1,0 +1,578 @@
+.historical-section {
+  margin: 0 32px 32px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+.historical-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.historical-title h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.historical-range {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+
+.historical-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.chart-type-selector {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.chart-type-btn {
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-type-btn.active {
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.chart-type-btn:hover:not(.active) {
+  color: #64748b;
+}
+
+.toggle-table-btn,
+.download-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid;
+}
+
+.toggle-table-btn {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.toggle-table-btn:hover {
+  background: #dbeafe;
+}
+
+.download-btn {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+}
+
+.download-btn:hover {
+  background: #dcfce7;
+}
+
+/* Date filter bar */
+.date-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.date-filter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.date-filter-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.date-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.date-filter-item span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.datetime-input {
+  padding: 5px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  color: #334155;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  outline: none;
+}
+
+.datetime-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+}
+
+.date-filter-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.filter-apply-btn {
+  padding: 6px 16px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.filter-apply-btn:hover:not(:disabled) { background: #1d4ed8; }
+.filter-apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.filter-preset-btn {
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.filter-preset-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.filter-preset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.loading-indicator { color: #94a3b8; font-style: italic; }
+
+.chart-loading {
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  padding: 16px 24px 0;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 0;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover { color: #64748b; }
+
+.tab-btn.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  font-weight: 600;
+}
+
+/* Chart */
+.chart-container {
+  padding: 20px 16px 8px;
+}
+
+/* Custom tooltip */
+.custom-tooltip {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+.tooltip-label {
+  color: #64748b;
+  margin-bottom: 8px;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 3px 0;
+}
+
+.tooltip-name { color: #94a3b8; }
+.tooltip-value { font-weight: 700; }
+
+/* Table */
+.table-container {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 520px;
+  padding: 0;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 600px;
+}
+
+.data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: right;
+  padding: 10px 16px;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+  text-align: left;
+}
+
+.data-table td {
+  text-align: right;
+  padding: 8px 16px;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table tr.even td { background: #fafafa; }
+.data-table tr.odd td  { background: #ffffff; }
+.data-table tr:hover td { background: #eff6ff; }
+
+.positive { color: #16a34a; font-weight: 600; }
+.negative { color: #dc2626; font-weight: 600; }
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.pagination button {
+  padding: 6px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  color: #64748b;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Error de API ──────────────────────────────────────────────────────────── */
+.api-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 24px 0;
+  padding: 12px 16px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  color: #9a3412;
+  line-height: 1.4;
+}
+
+.api-error-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.api-error-retry {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 4px 12px;
+  background: #ea580c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.api-error-retry:hover { background: #c2410c; }
+
+/* ── Clima selector (Ambiente tab – chips) ─────────────────────────────────── */
+.clima-selector {
+  padding: 12px 24px 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.clima-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.clima-group-btn {
+  padding: 4px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clima-group-btn:hover { background: #e2e8f0; color: #1e293b; }
+
+.clima-group-btn.select-all-btn {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+.clima-group-btn.select-all-btn:hover {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.clima-group-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.clima-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.clima-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clima-chip:hover { background: #f1f5f9; }
+.clima-chip.selected { font-weight: 600; }
+
+.chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chip-unit {
+  opacity: 0.6;
+  font-size: 0.68rem;
+}
+
+.clima-selected-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.selected-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: transparent;
+}
+
+.badge-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.7;
+  padding: 0 0 0 2px;
+  margin: 0;
+}
+
+.badge-remove:hover { opacity: 1; }
+
+/* ── Sub-fuentes (Clima / Energía dentro del tab Clima) ────────────────────── */
+.subsource-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.subsource-btn {
+  padding: 6px 18px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.subsource-btn:hover:not(.active) { color: #1e293b; }
+
+.subsource-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+/* ── Mensaje de carga de campos ────────────────────────────────────────────── */
+.fields-loading-msg {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  padding: 8px 0;
+  font-style: italic;
+}
+
+/* ── Clima dropdown (Clima tab) ────────────────────────────────────────────── */
+.clima-dropdown-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.clima-dropdown-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.clima-dropdown {
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: #1e293b;
+  background: #f8fafc;
+  cursor: pointer;
+  min-width: 220px;
+  transition: border-color 0.2s;
+}
+
+.clima-dropdown:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #ffffff;
+}

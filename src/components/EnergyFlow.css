@@ -1,0 +1,302 @@
+/* ═══════════════════════════════
+   WRAPPER & SCENE
+═══════════════════════════════ */
+.energy-flow-wrapper {
+  padding: 0 32px 16px;
+}
+
+.scene-container {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: linear-gradient(180deg,
+    #bfdbfe 0%,
+    #dbeafe 30%,
+    #e0f2fe 55%,
+    #dcfce7 78%,
+    #bbf7d0 100%
+  );
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1), 0 0 0 1px rgba(148,163,184,0.2);
+}
+
+.flow-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════
+   DECORATIVE BACKGROUND
+═══════════════════════════════ */
+.scene-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.sky {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 62%;
+  background: linear-gradient(180deg, #bfdbfe 0%, #e0f2fe 100%);
+}
+
+.sun-container { position: absolute; top: 8%; left: 16%; }
+
+.sun { filter: drop-shadow(0 0 8px rgba(251,191,36,0.35)); transition: filter 0.5s; }
+.sun-active {
+  filter: drop-shadow(0 0 22px rgba(251,191,36,0.75));
+  animation: sunPulse 3s infinite;
+}
+@keyframes sunPulse {
+  0%,100% { filter: drop-shadow(0 0 14px rgba(251,191,36,0.5)); }
+  50%      { filter: drop-shadow(0 0 32px rgba(251,191,36,0.9)); }
+}
+
+.clouds { position: absolute; inset: 0; }
+.cloud {
+  position: absolute;
+  border-radius: 50px;
+  background: rgba(255,255,255,0.6);
+}
+.cloud-1 {
+  width: 120px; height: 30px; top: 20%; right: 22%;
+  box-shadow: 0 4px 12px rgba(255,255,255,0.4);
+  animation: cloudDrift 22s infinite linear;
+}
+.cloud-2 {
+  width: 80px; height: 20px; top: 40%; right: 38%;
+  box-shadow: 0 3px 8px rgba(255,255,255,0.3);
+  animation: cloudDrift 32s infinite linear reverse;
+}
+@keyframes cloudDrift {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(18px); }
+  100% { transform: translateX(0); }
+}
+
+.ground {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 14%;
+  background: linear-gradient(180deg, #bbf7d0 0%, #86efac 100%);
+}
+
+/* ═══════════════════════════════
+   GENERIC NODE WRAPPER
+═══════════════════════════════ */
+.node {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+}
+
+/* ═══════════════════════════════
+   ENERGY NODE CARDS
+═══════════════════════════════ */
+.node-card {
+  background: rgba(255,255,255,0.93);
+  backdrop-filter: blur(14px);
+  border-radius: 14px;
+  padding: 14px 16px;
+  min-width: 148px;
+  text-align: center;
+  border: 1.5px solid transparent;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.node-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.14);
+}
+
+/* Color accents per card type */
+.pv-card      { border-color: rgba(251,191,36,0.45);  box-shadow: 0 4px 18px rgba(251,191,36,0.14); }
+.grid-card    { border-color: rgba(59,130,246,0.40);  box-shadow: 0 4px 18px rgba(59,130,246,0.12); }
+.battery-card { border-color: rgba(139,92,246,0.40);  box-shadow: 0 4px 18px rgba(139,92,246,0.12); }
+.clima-card   { border-color: rgba(6,182,212,0.40);   box-shadow: 0 4px 18px rgba(6,182,212,0.12);  }
+
+.node-icon   { margin-bottom: 8px; display: flex; justify-content: center; }
+.node-label  { font-size: 0.68rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+.node-value  { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums;
+               display: flex; align-items: baseline; justify-content: center; gap: 3px; }
+.unit        { font-size: 0.68rem; font-weight: 400; color: #94a3b8; margin-left: 2px; }
+
+.pv-value     { color: #d97706; }
+.grid-value   { color: #2563eb; }
+.bat-discharge{ color: #7c3aed; }
+.clima-value  { color: #0891b2; }
+
+.node-status {
+  font-size: 0.65rem;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  display: inline-block;
+  font-weight: 600;
+}
+.status-active       { background: #dcfce7; color: #16a34a; }
+.status-inactive     { background: #f1f5f9; color: #94a3b8; }
+.status-grid         { background: #dbeafe; color: #2563eb; }
+.status-bat-discharge{ background: #ede9fe; color: #7c3aed; }
+.status-clima        { background: #cffafe; color: #0891b2; }
+
+/* ═══════════════════════════════
+   BATTERY VISUAL
+═══════════════════════════════ */
+.battery-visual   { display: flex; align-items: center; gap: 2px; margin-bottom: 4px; }
+.battery-body     { position: relative; width: 72px; height: 24px;
+                    border: 2px solid #8b5cf6; border-radius: 4px; overflow: hidden; background: #f5f3ff; }
+.battery-fill     { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; transition: width 1s, background 0.5s; }
+.battery-fill.charging { animation: battCharge 1.5s infinite; }
+@keyframes battCharge {
+  0%,100% { opacity: 0.78; }
+  50%     { opacity: 1; }
+}
+.battery-level-text {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.62rem; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.battery-cap { width: 4px; height: 12px; background: #8b5cf6; border-radius: 0 2px 2px 0; }
+
+/* ═══════════════════════════════
+   OFFICE BUILDING HUB
+═══════════════════════════════ */
+.office-building {
+  position: relative;     /* needed for interior-overlay */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.office-building svg {
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,0.18));
+}
+
+/* Interior conditions — overlaid on the building body */
+.interior-overlay {
+  position: absolute;
+  top: 115px;                   /* over the upper floor windows */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.90);
+  backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(34,197,94,0.4);
+  border-radius: 11px;
+  padding: 7px 14px 8px;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 192px;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+}
+.interior-overlay-title {
+  font-size: 0.63rem;
+  color: #16a34a;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.interior-overlay-vals {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  font-size: 0.80rem;
+  color: #1e293b;
+  margin-bottom: 5px;
+}
+.interior-overlay-vals strong { font-weight: 700; }
+.interior-overlay-air {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 0.63rem;
+  color: #64748b;
+}
+.air-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* Consumption badge below building */
+.office-data-badge {
+  background: rgba(255,255,255,0.93);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(14,165,233,0.38);
+  border-radius: 12px;
+  padding: 8px 22px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(14,165,233,0.12);
+  min-width: 170px;
+  margin-top: -2px;
+}
+.office-label       { font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+.office-consumption { font-size: 1.5rem; font-weight: 800; color: #1e293b;
+                      display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-top: 2px; }
+.office-value       { color: #1e293b; }
+.office-sublabel    { font-size: 0.63rem; color: #94a3b8; margin-top: 1px; }
+
+/* ═══════════════════════════════
+   EXTERIOR CONDITIONS CARD
+═══════════════════════════════ */
+.conditions-card {
+  position: absolute;
+  z-index: 6;
+  background: rgba(255,255,255,0.93);
+  backdrop-filter: blur(14px);
+  border-radius: 14px;
+  padding: 14px 16px;
+  border: 1.5px solid rgba(251,191,36,0.32);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.09);
+  min-width: 200px;
+}
+
+.conditions-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 12px;
+}
+.conditions-grid { display: flex; flex-direction: column; gap: 9px; }
+.cond-item       { display: flex; align-items: center; gap: 10px; }
+.cond-icon       { font-size: 1.05rem; }
+.cond-value      { font-size: 0.98rem; font-weight: 700; color: #1e293b; }
+.cond-label      { font-size: 0.63rem; color: #94a3b8; }
+
+/* ═══════════════════════════════
+   POWER BALANCE BAR
+═══════════════════════════════ */
+.power-balance {
+  position: absolute;
+  z-index: 6;
+  background: rgba(255,255,255,0.93);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 10px 22px;
+  border: 1px solid rgba(0,0,0,0.07);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.09);
+  min-width: 440px;
+  text-align: center;
+}
+.balance-label { font-size: 0.66rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px; }
+.balance-bar   { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.balance-fill  { height: 100%; border-radius: 3px; transition: width 1s ease; }
+.balance-stats { display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 0.74rem; }
+.balance-pv          { color: #d97706; font-weight: 700; }
+.balance-consumption { color: #2563eb; font-weight: 700; }
+.balance-sep         { color: #cbd5e1; }
+.balance-delta       { font-weight: 700; }
+.surplus { color: #16a34a; }
+.deficit { color: #d97706; }
