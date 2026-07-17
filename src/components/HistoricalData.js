@@ -295,8 +295,8 @@ export default function HistoricalData() {
   }, [activeTab, tabFields]);
 
   /* ── Derivados ──────────────────────────────────────────────────────────── */
-  const currentFields   = tabFields[activeTab]   ?? [];
-  const currentSelected = selectedFields[activeTab] ?? new Set();
+  const currentFields   = useMemo(() => tabFields[activeTab]     ?? [], [tabFields, activeTab]);
+  const currentSelected = useMemo(() => selectedFields[activeTab] ?? new Set(), [selectedFields, activeTab]);
   const currentGroup    = activeGroup[activeTab]  ?? '';
 
   const currentGroups = useMemo(() => (

@@ -1,9 +1,26 @@
-const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
+const express   = require('express');
+const cors      = require('cors');
+const path      = require('path');
+const crypto    = require('crypto');
+const jwt       = require('jsonwebtoken');
+const bcryptjs  = require('bcryptjs');
 const { MongoClient, ObjectId } = require('mongodb');
 
-const IS_PROD = process.env.NODE_ENV === 'production';
+const IS_PROD    = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const BMS_USER   = 'BMS-Regenera';
+const BMS_HASH   = '$2b$12$f5VV5Qy6v2459WMAi6ZTrutj8vwqa2DVm5OuDOOFKKRH08lvMdMeq';
+
+function requireAuth(req, res, next) {
+  const auth = req.headers.authorization ?? '';
+  if (!auth.startsWith('Bearer ')) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    jwt.verify(auth.slice(7), JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+}
 
 const MONGO_URIS = [
   process.env.MONGO_URI,
@@ -21,6 +38,22 @@ const BUCKET_MS = 10 * 60 * 1000;
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+
+// ── Autenticación ─────────────────────────────────────────────────────────────
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body ?? {};
+  if (username !== BMS_USER || !await bcryptjs.compare(password ?? '', BMS_HASH)) {
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+  }
+  const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '8h' });
+  res.json({ token });
+});
+
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/auth/')) return next();
+  requireAuth(req, res, next);
+});
 
 let db;
 let connectedUri = null;
@@ -386,10 +419,6 @@ app.get('/api/totals', async (req, res) => {
 });
 
 // ── /api/control/hvac ────────────────────────────────────────────────────────
-// Almacena la configuración en memoria (se pierde al reiniciar el servidor).
-// Para persistencia real, guardar en BD o en un fichero JSON.
-app.use(express.json());
-
 let hvacConfig = {
   maquina:     false,  // coil 120 — arranque/paro general del equipo
   setpoint:    22.0,

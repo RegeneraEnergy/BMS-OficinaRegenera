@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Header.css';
 
-export default function Header({ lastUpdate, apiStatus }) {
+export default function Header({ lastUpdate, apiStatus, onLogout }) {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -36,6 +36,12 @@ export default function Header({ lastUpdate, apiStatus }) {
             <div className="last-update">Actualizado: {new Date(lastUpdate).toLocaleTimeString('es-ES')}</div>
           )}
         </div>
+
+        {onLogout && (
+          <button className="logout-btn" onClick={onLogout} title="Cerrar sesión">
+            Salir
+          </button>
+        )}
       </div>
     </header>
   );

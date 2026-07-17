@@ -4,6 +4,16 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Inyecta el token JWT en todas las llamadas a la API automáticamente
+const _fetch = window.fetch.bind(window);
+window.fetch = (url, opts = {}) => {
+  const token = localStorage.getItem('bms_token');
+  if (token && typeof url === 'string' && url.includes('/api/') && !url.includes('/api/auth/')) {
+    opts = { ...opts, headers: { Authorization: `Bearer ${token}`, ...opts.headers } };
+  }
+  return _fetch(url, opts);
+};
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

@@ -23,7 +23,7 @@ function AnimatedDot({ path, color, duration, delay = 0, reverse = false }) {
 export default function EnergyFlow({ data }) {
   if (!data) return null;
 
-  const { pvGeneration, totalConsumption, climaConsumption,
+  const { pvGeneration, climaConsumption,
           gridDemand, batteryFlow, batteryLevel, exterior, interior } = data;
 
   const batteryCharging = batteryFlow > 0;

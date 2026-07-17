@@ -4,6 +4,7 @@ import Header from './components/Header';
 import StatsBar from './components/StatsBar';
 import EnergyFlow from './components/EnergyFlow';
 import HistoricalData from './components/HistoricalData';
+import Login from './components/Login';
 import { generateRealTimeData } from './data/mockData';
 
 const REFRESH_INTERVAL = 10000; // 10 segundos
@@ -32,6 +33,17 @@ async function fetchLive() {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState(() => !!localStorage.getItem('bms_token'));
+
+  const handleLogin  = () => setAuthed(true);
+  const handleLogout = () => { localStorage.removeItem('bms_token'); setAuthed(false); };
+
+  if (!authed) return <Login onLogin={handleLogin} />;
+
+  return <Dashboard onLogout={handleLogout} />;
+}
+
+function Dashboard({ onLogout }) {
   const [liveData, setLiveData]   = useState(null);
   const [apiStatus, setApiStatus] = useState('connecting');
 
@@ -40,11 +52,12 @@ export default function App() {
       const data = await fetchLive();
       setLiveData(data);
       setApiStatus('live');
-    } catch {
+    } catch (err) {
+      if (err.message?.includes('401')) { onLogout(); return; }
       setLiveData(generateRealTimeData());
       setApiStatus('mock');
     }
-  }, []);
+  }, [onLogout]);
 
   useEffect(() => {
     refreshLive();
@@ -54,7 +67,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header lastUpdate={liveData?.timestamp} apiStatus={apiStatus} />
+      <Header lastUpdate={liveData?.timestamp} apiStatus={apiStatus} onLogout={onLogout} />
       <main className="main-content">
         <StatsBar data={liveData} />
         <EnergyFlow data={liveData} />
