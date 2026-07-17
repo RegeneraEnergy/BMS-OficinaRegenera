@@ -1,7 +1,20 @@
 /**
  * ecosystem.pi.config.js  —  Solo para la Raspberry Pi
  *
- * Uso:
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║  ANTES DE ARRANCAR — cosas que hay que cambiar:                 ║
+ * ║                                                                  ║
+ * ║  1. MONGO_URI  →  reemplaza IP_SERVIDOR_NUBE por la IP pública  ║
+ * ║     del servidor en la nube (ej. 49.12.200.100).                ║
+ * ║     Reemplaza CONTRASEÑA por la que hayas asignado al usuario    ║
+ * ║     'bms_user' de MongoDB al configurar el servidor.            ║
+ * ║     Ver sección "Despliegue en Servidor Nube" del README.        ║
+ * ║                                                                  ║
+ * ║  2. CIAT_IP    →  confirma que la IP del CIAT sigue siendo       ║
+ * ║     169.254.226.19 (link-local, no debería cambiar).            ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ *
+ * Uso (en la Raspberry Pi):
  *   pm2 start ecosystem.pi.config.js
  *   pm2 save
  *   pm2 startup          ← para arranque automático tras reinicio
@@ -12,7 +25,8 @@ module.exports = {
       name:   'agent-ciat',
       script: 'agent-ciat.js',
       env: {
-        MONGO_URI:    'mongodb://127.0.0.1:27017',
+        // ⚠️  CAMBIA IP_SERVIDOR_NUBE y CONTRASEÑA antes de arrancar:
+        MONGO_URI:    'mongodb://bms_user:CONTRASEÑA@IP_SERVIDOR_NUBE:27017',
         DB_NAME:      'Oficina-REGENERA',
         CIAT_IP:      '169.254.226.19',
         CIAT_PORT:    '502',
