@@ -25,3 +25,14 @@ yarn-error.log*
 # PM2 logs
 /logs
 server.log
+
+# Claude Code session data
+.claude/
+
+# Assets locales no versionados
+"Imagen edificio.jpg"
+*.jpg
+*.jpeg
+*.png
+!public/*.png
+!src/assets/*.png

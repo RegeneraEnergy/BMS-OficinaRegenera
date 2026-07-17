@@ -4,8 +4,10 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import './HistoricalData.css';
+import HVACControl from './HVACControl';
+import ScheduleManager from './ScheduleManager';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
 
 const TABS = [
   { id: 'clima',    label: 'Clima',    icon: '🌬️' },
@@ -17,6 +19,30 @@ const CLIMA_SUBS = [
   { id: 'ciat',  label: 'Clima',   source: 'readings', device: 'ciat' },
   { id: 'power', label: 'Energía', source: 'power',    device: null   },
 ];
+
+const GRANULARITIES = [
+  { id: 'raw', label: 'Máx.' },
+  { id: '5m',  label: '5 min' },
+  { id: '10m', label: '10 min' },
+  { id: '15m', label: '15 min' },
+  { id: '20m', label: '20 min' },
+  { id: '1h',  label: '1 hora' },
+  { id: '1d',  label: 'Diaria' },
+  { id: '1mo', label: 'Mensual' },
+  { id: '1y',  label: 'Anual' },
+];
+
+function smartGranularity(from, to) {
+  const ms = to - from;
+  const h = 3_600_000, d = 86_400_000;
+  if (ms <=  2 * h)   return 'raw';
+  if (ms <= 12 * h)   return '5m';
+  if (ms <=  3 * d)   return '15m';
+  if (ms <=  7 * d)   return '1h';
+  if (ms <= 60 * d)   return '1d';
+  if (ms <= 730 * d)  return '1mo';
+  return '1y';
+}
 
 const COLOR_PALETTE = [
   '#fbbf24','#60a5fa','#22d3ee','#f87171','#a78bfa','#34d399',
@@ -70,10 +96,13 @@ function formatDatetime(isoStr) {
   return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function formatChartTick(isoStr) {
+function formatChartTick(isoStr, granularity) {
   if (!isoStr) return '';
   const d = new Date(isoStr);
   const pad = n => String(n).padStart(2, '0');
+  if (granularity === '1y')  return `${d.getUTCFullYear()}`;
+  if (granularity === '1mo') return `${pad(d.getUTCMonth()+1)}/${d.getUTCFullYear()}`;
+  if (granularity === '1d')  return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth()+1)}/${d.getUTCFullYear()}`;
   return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
@@ -134,6 +163,10 @@ export default function HistoricalData() {
   const [draftTo,   setDraftTo]       = useState(toLocalInput(now));
   const [appliedFrom, setAppliedFrom] = useState(defaultFrom);
   const [appliedTo,   setAppliedTo]   = useState(now);
+  const [granularity, setGranularity] = useState(() => smartGranularity(defaultFrom, now));
+
+  const [showHVACControl,   setShowHVACControl]   = useState(false);
+  const [showScheduleManager, setShowScheduleManager] = useState(false);
 
   /* ── Carga de campos ────────────────────────────────────────────────────── */
 
@@ -189,16 +222,17 @@ export default function HistoricalData() {
   }, [climaSubId]); // eslint-disable-line
 
   /* ── Fetch de datos ─────────────────────────────────────────────────────── */
-  const doFetch = useCallback(async (from, to, tabId, subId) => {
+  const doFetch = useCallback(async (from, to, tabId, subId, gran) => {
     const eff = effectiveSource(tabId, subId);
     if (!eff) return;
     setLoading(true);
     setApiError(null);
     try {
       const params = new URLSearchParams({
-        source: eff.source,
-        from: from.toISOString(),
-        to: to.toISOString(),
+        source:      eff.source,
+        from:        from.toISOString(),
+        to:          to.toISOString(),
+        granularity: gran,
       });
       if (eff.device) params.set('device', eff.device);
       const res = await fetch(`${API_BASE}/api/data?${params}`);
@@ -217,8 +251,8 @@ export default function HistoricalData() {
   }, []);
 
   useEffect(() => {
-    doFetch(appliedFrom, appliedTo, activeTab, climaSubId);
-  }, [appliedFrom, appliedTo, activeTab, climaSubId]); // eslint-disable-line
+    doFetch(appliedFrom, appliedTo, activeTab, climaSubId, granularity);
+  }, [appliedFrom, appliedTo, activeTab, climaSubId, granularity]); // eslint-disable-line
 
   /* ── Filtro de fechas ───────────────────────────────────────────────────── */
   const applyFilter = () => {
@@ -234,6 +268,7 @@ export default function HistoricalData() {
     setDraftTo(toLocalInput(t));
     setAppliedFrom(f);
     setAppliedTo(t);
+    setGranularity(smartGranularity(f, t));
     setPage(0);
   };
 
@@ -278,8 +313,10 @@ export default function HistoricalData() {
       .map(k => ({ key: k, name: prettifyKey(k), color: fieldColor(k, currentFields) }))
   ), [currentSelected, currentFields]);
 
+  // El servidor ya agregó: solo limitamos el nº de puntos en el gráfico
   const displayData  = useMemo(() => {
-    const step = histData.length > 200 ? 3 : histData.length > 100 ? 2 : 1;
+    if (histData.length <= 500) return histData;
+    const step = Math.ceil(histData.length / 500);
     return histData.filter((_, i) => i % step === 0);
   }, [histData]);
 
@@ -293,7 +330,7 @@ export default function HistoricalData() {
     }
     const tickInterval = Math.max(0, Math.floor(displayData.length / 8) - 1);
     const xAxis   = (
-      <XAxis dataKey="datetime" tickFormatter={formatChartTick}
+      <XAxis dataKey="datetime" tickFormatter={s => formatChartTick(s, granularity)}
         tick={{ fill: '#475569', fontSize: 10 }} tickLine={false}
         axisLine={{ stroke: '#1e293b' }} interval={tickInterval} />
     );
@@ -356,6 +393,12 @@ export default function HistoricalData() {
           </span>
         </div>
         <div className="historical-actions">
+          <button className="hvac-control-btn" onClick={() => setShowHVACControl(true)}>
+            ❄️ Control CIAT
+          </button>
+          <button className="schedule-control-btn" onClick={() => setShowScheduleManager(true)}>
+            🕐 Programar
+          </button>
           <div className="chart-type-selector">
             {['area', 'line', 'bar'].map(type => (
               <button key={type} className={`chart-type-btn ${chartType === type ? 'active' : ''}`}
@@ -393,6 +436,16 @@ export default function HistoricalData() {
               onChange={e => setDraftTo(e.target.value)} className="datetime-input" />
           </label>
         </div>
+        <div className="granularity-selector">
+          {GRANULARITIES.map(g => (
+            <button
+              key={g.id}
+              className={`granularity-btn ${granularity === g.id ? 'active' : ''}`}
+              onClick={() => setGranularity(g.id)}
+              disabled={loading}
+            >{g.label}</button>
+          ))}
+        </div>
         <div className="date-filter-actions">
           <button className="filter-apply-btn" onClick={applyFilter} disabled={loading}>Aplicar</button>
           <button className="filter-preset-btn" onClick={applyLast24h} disabled={loading}>Últimas 24h</button>
@@ -411,69 +464,80 @@ export default function HistoricalData() {
 
       {/* Selector de variables */}
       <div className="clima-selector">
-        {tabFieldsLoading ? (
-          <div className="fields-loading-msg">Cargando variables disponibles…</div>
-        ) : (
-          <>
-            {/* Sub-fuentes (solo en tab Clima) */}
-            {activeTab === 'clima' && (
-              <div className="subsource-bar">
-                {CLIMA_SUBS.map(sub => (
-                  <button
-                    key={sub.id}
-                    className={`subsource-btn ${climaSubId === sub.id ? 'active' : ''}`}
-                    onClick={() => { setClimaSubId(sub.id); setPage(0); }}
-                  >
-                    {sub.label}
-                  </button>
-                ))}
+        {/* Sub-fuentes + acciones — solo visible en tab Clima */}
+        {!tabFieldsLoading && activeTab === 'clima' && (
+          <div className="selector-top-row">
+            <div className="subsource-bar">
+              {CLIMA_SUBS.map(sub => (
+                <button
+                  key={sub.id}
+                  className={`subsource-btn ${climaSubId === sub.id ? 'active' : ''}`}
+                  onClick={() => { setClimaSubId(sub.id); setPage(0); }}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+            {currentFields.length > 0 && (
+              <div className="selector-actions">
+                <button className="clima-group-btn select-all-btn" onClick={selectAll}>
+                  Seleccionar todo
+                </button>
+                <button className="clima-group-btn" onClick={clearAll}>Limpiar</button>
               </div>
             )}
+          </div>
+        )}
 
-            {currentFields.length === 0 ? (
-              <div className="fields-loading-msg">No se encontraron variables para este origen.</div>
-            ) : (
-              <>
-                {/* Botones de grupo */}
-                <div className="clima-groups">
+        {/* Contenido según estado */}
+        {tabFieldsLoading ? (
+          <div className="fields-loading-msg">Cargando variables disponibles…</div>
+        ) : currentFields.length === 0 ? (
+          <div className="fields-loading-msg">No se encontraron variables para este origen.</div>
+        ) : (
+          <>
+            {/* Botones de grupo + acciones en la misma línea */}
+            <div className="clima-groups">
+              {currentGroups.filter(g => g.toLowerCase() !== 'clima').map(g => (
+                <button
+                  key={g}
+                  className={`clima-group-btn ${currentGroup === g ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveGroup(prev => ({ ...prev, [activeTab]: g }));
+                    selectGroup(g);
+                  }}
+                >
+                  {g}
+                </button>
+              ))}
+              {activeTab !== 'clima' && (
+                <div className="selector-actions">
                   <button className="clima-group-btn select-all-btn" onClick={selectAll}>
                     Seleccionar todo
                   </button>
-                  {currentGroups.map(g => (
-                    <button
-                      key={g}
-                      className={`clima-group-btn ${currentGroup === g ? 'active' : ''}`}
-                      onClick={() => {
-                        setActiveGroup(prev => ({ ...prev, [activeTab]: g }));
-                        selectGroup(g);
-                      }}
-                    >
-                      {g}
-                    </button>
-                  ))}
                   <button className="clima-group-btn" onClick={clearAll}>Limpiar</button>
                 </div>
+              )}
+            </div>
 
-                {/* Chips del grupo activo */}
-                <div className="clima-chips">
-                  {fieldsInGroup.map(key => {
-                    const color = fieldColor(key, currentFields);
-                    const sel   = currentSelected.has(key);
-                    return (
-                      <button
-                        key={key}
-                        className={`clima-chip ${sel ? 'selected' : ''}`}
-                        style={sel ? { borderColor: color, background: color + '22', color } : {}}
-                        onClick={() => toggleField(key)}
-                      >
-                        <span className="chip-dot" style={{ background: color }} />
-                        {prettifyKey(key)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+            {/* Chips del grupo activo */}
+            <div className="clima-chips">
+              {fieldsInGroup.map(key => {
+                const color = fieldColor(key, currentFields);
+                const sel   = currentSelected.has(key);
+                return (
+                  <button
+                    key={key}
+                    className={`clima-chip ${sel ? 'selected' : ''}`}
+                    style={sel ? { borderColor: color, background: color + '22', color } : {}}
+                    onClick={() => toggleField(key)}
+                  >
+                    <span className="chip-dot" style={{ background: color }} />
+                    {prettifyKey(key)}
+                  </button>
+                );
+              })}
+            </div>
           </>
         )}
       </div>
@@ -483,7 +547,7 @@ export default function HistoricalData() {
         <div className="api-error-banner">
           <span className="api-error-icon">⚠</span>
           {apiError}
-          <button className="api-error-retry" onClick={() => doFetch(appliedFrom, appliedTo, activeTab, climaSubId)}>
+          <button className="api-error-retry" onClick={() => doFetch(appliedFrom, appliedTo, activeTab, climaSubId, granularity)}>
             Reintentar
           </button>
         </div>
@@ -531,6 +595,9 @@ export default function HistoricalData() {
           </div>
         </div>
       )}
+
+      {showHVACControl     && <HVACControl      onClose={() => setShowHVACControl(false)} />}
+      {showScheduleManager && <ScheduleManager  onClose={() => setShowScheduleManager(false)} />}
     </div>
   );
 }

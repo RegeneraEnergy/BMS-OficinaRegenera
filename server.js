@@ -1,7 +1,7 @@
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const { MongoClient } = require('mongodb');
+const cors    = require('cors');
+const path    = require('path');
+const { MongoClient, ObjectId } = require('mongodb');
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
@@ -83,26 +83,37 @@ app.get('/api/live', async (req, res) => {
   try {
     const col = db.collection('readings');
 
-    const [deye, ciat] = await Promise.all([
-      col.findOne({ 'metadata.deviceId': DEYE_ID }, { sort: { ts: -1 } }),
-      col.findOne({ 'metadata.deviceId': CIAT_ID }, { sort: { ts: -1 } }),
+    const [deye, ciat, power] = await Promise.all([
+      col.findOne({ 'metadata.deviceId': /deye/i }, { sort: { ts: -1 } }),
+      col.findOne({ 'metadata.deviceId': /ciat/i }, { sort: { ts: -1 } }),
+      db.collection('reading_power').findOne({}, { sort: { ts: -1 } }),
     ]);
 
     const dm = deye?.metrics ?? {};
     const cm = ciat?.metrics?.clima ?? {};
 
+    const deyeFlat  = flattenDoc(dm);
+    const pvActiveW = dm.inverter?.totalW ?? 0;
+    const climakW   = power?.metrics?.clima?.potenciaTotalkW ?? cm.potenciaTotalkW ?? 0;
+
+    // metrics.clima.notSyson1: 0 = máquina arrancada, 1 = máquina parada
+    const notSyson1 = cm.notSyson1 ?? null;
+    const maquinaArranacada = notSyson1 !== null ? notSyson1 === 0 : null;
+
     res.json({
-      pvGeneration:     +((dm.pv?.totalSolarW ?? 0) / 1000).toFixed(2),
-      totalConsumption: +((dm.load?.totalW    ?? 0) / 1000).toFixed(2),
-      climaConsumption: +(cm.potenciaTotalkW  ?? 0).toFixed(2),
-      gridDemand:       +Math.max(0, (dm.grid?.totalW ?? 0) / 1000).toFixed(2),
-      batteryFlow:      +(-(dm.battery?.powerW ?? 0) / 1000).toFixed(2),
-      batteryLevel:     +(dm.battery?.socPct   ?? 0).toFixed(1),
+      pvGeneration:       +(pvActiveW / 1000).toFixed(2),
+      totalConsumption:   +((dm.grid?.totalW ?? 0) / 1000).toFixed(2),
+      climaConsumption:   +(climakW).toFixed(2),
+      gridDemand:         +((dm.grid?.totalW ?? 0) / 1000).toFixed(2),
+      batteryFlow:        +(-(dm.battery?.powerW ?? 0) / 1000).toFixed(2),
+      batteryLevel:       +(dm.battery?.socPct   ?? 0).toFixed(1),
+      maquinaArrancada:   maquinaArranacada,  // null | true | false
       exterior: { temperature: cm.tempExteriorC ?? null, humidity: null, radiation: null },
       interior: { temperature: cm.tempAmbienteC ?? null, humidity: null, co2: cm.co2Ppm ?? null },
       clima:     cm,
       timestamp: deye?.ts ?? ciat?.ts ?? new Date().toISOString(),
       _sources:  { deye: deye?.ts ?? null, ciat: ciat?.ts ?? null },
+      _deyeMetrics: deyeFlat,
     });
   } catch (err) {
     console.error('/api/live error:', err.message);
@@ -147,9 +158,9 @@ app.get('/api/historical', async (req, res) => {
         time:             new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
         datetime:         new Date(ts).toISOString(),
         pvGeneration:     +((dm.pv?.totalSolarW ?? 0) / 1000).toFixed(2),
-        totalConsumption: +((dm.load?.totalW    ?? 0) / 1000).toFixed(2),
+        totalConsumption: +((dm.grid?.totalW ?? 0) / 1000).toFixed(2),
         climaConsumption: +(cm.potenciaTotalkW  ?? 0).toFixed(2),
-        gridDemand:       +Math.max(0, (dm.grid?.totalW ?? 0) / 1000).toFixed(2),
+        gridDemand:       +((dm.grid?.totalW ?? 0) / 1000).toFixed(2),
         batteryFlow:      +(-(dm.battery?.powerW ?? 0) / 1000).toFixed(2),
         batteryLevel:     +(dm.battery?.socPct   ?? 0).toFixed(1),
         clima:            cm,
@@ -224,12 +235,68 @@ app.get('/api/fields', async (req, res) => {
   }
 });
 
+// ── Agregación temporal ───────────────────────────────────────────────────────
+const GRAN_MS = { '5m': 300_000, '10m': 600_000, '15m': 900_000, '20m': 1_200_000, '1h': 3_600_000 };
+
+function bucketKeyForDoc(ts, granularity) {
+  const d   = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  if (GRAN_MS[granularity]) {
+    return String(Math.floor(d.getTime() / GRAN_MS[granularity]) * GRAN_MS[granularity]);
+  }
+  if (granularity === '1d')  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  if (granularity === '1mo') return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+  if (granularity === '1y')  return `${d.getFullYear()}`;
+  return d.toISOString(); // 'raw' — sin agrupación
+}
+
+function bucketKeyToIso(key, granularity) {
+  if (GRAN_MS[granularity]) return new Date(Number(key)).toISOString();
+  if (granularity === '1d')  return new Date(key + 'T00:00:00.000Z').toISOString();
+  if (granularity === '1mo') return new Date(key + '-01T00:00:00.000Z').toISOString();
+  if (granularity === '1y')  return new Date(key + '-01-01T00:00:00.000Z').toISOString();
+  return key;
+}
+
+function agregateData(docs, granularity) {
+  if (!docs.length) return [];
+
+  if (granularity === 'raw') {
+    return docs.map(doc => ({
+      datetime: new Date(doc.ts).toISOString(),
+      ...flattenDoc(getMetricsObj(doc)),
+    }));
+  }
+
+  const buckets = new Map();
+  for (const doc of docs) {
+    const key = bucketKeyForDoc(doc.ts, granularity);
+    if (!buckets.has(key)) buckets.set(key, { _n: 0, _sums: {} });
+    const b   = buckets.get(key);
+    const flat = flattenDoc(getMetricsObj(doc));
+    b._n++;
+    for (const [k, v] of Object.entries(flat)) {
+      if (typeof v === 'number') b._sums[k] = (b._sums[k] ?? 0) + v;
+    }
+  }
+
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, b]) => {
+      const out = { datetime: bucketKeyToIso(key, granularity) };
+      for (const [k, sum] of Object.entries(b._sums)) {
+        out[k] = Math.round(sum / b._n * 100) / 100;
+      }
+      return out;
+    });
+}
+
 // ── /api/data ────────────────────────────────────────────────────────────────
-// Serie temporal aplanada, agrupada en cubos de 10 min.
 // ?source=power|readings  ?device=ciat|deye  ?from=ISO  ?to=ISO
+// ?granularity=raw|5m|10m|15m|20m|1h|1d|1mo|1y
 app.get('/api/data', async (req, res) => {
   try {
-    const { source = 'power', device, from, to } = req.query;
+    const { source = 'power', device, from, to, granularity = '10m' } = req.query;
     const since = from ? new Date(from) : new Date(Date.now() - 24 * 3600 * 1000);
     const until = to   ? new Date(to)   : new Date();
 
@@ -240,28 +307,205 @@ app.get('/api/data', async (req, res) => {
     if (device) filter['metadata.deviceId'] = new RegExp(device, 'i');
 
     const docs = await col.find(filter).sort({ ts: 1 }).toArray();
-    console.log(`/api/data source=${source} device=${device ?? '-'} → ${docs.length} docs`);
+    console.log(`/api/data source=${source} device=${device ?? '-'} granularity=${granularity} → ${docs.length} docs`);
 
-    // Cubo de 10 min: nos quedamos con el último doc por cubo
-    const bucketMap = new Map();
-    for (const doc of docs) {
-      const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
-      bucketMap.set(key, doc);
-    }
-
-    const result = [...bucketMap.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([, doc]) => ({
-        datetime: new Date(doc.ts).toISOString(),
-        time: new Date(doc.ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-        ...flattenDoc(getMetricsObj(doc)),
-      }));
-
-    res.json(result);
+    res.json(agregateData(docs, granularity));
   } catch (err) {
     console.error('/api/data error:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── /api/totals ──────────────────────────────────────────────────────────────
+// Totales energéticos (kWh) para hoy (desde medianoche) o los últimos 7 días.
+// ?period=day|week
+app.get('/api/totals', async (req, res) => {
+  try {
+    const { period = 'day' } = req.query;
+    const now = new Date();
+    let since;
+    if (period === 'week') {
+      since = new Date(now - 7 * 24 * 3600 * 1000);
+    } else {
+      since = new Date(now);
+      since.setHours(0, 0, 0, 0);
+    }
+
+    const col = db.collection('readings');
+
+    const [deyeDocs, powerDocs1, powerDocs2] = await Promise.all([
+      col.find({ 'metadata.deviceId': /deye/i, ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
+      db.collection('reading_power').find({ ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
+      db.collection('readings_power').find({ ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
+    ]);
+
+    const powerDocs = powerDocs1.length >= powerDocs2.length ? powerDocs1 : powerDocs2;
+    console.log(`[totals] period=${period} deye=${deyeDocs.length} reading_power=${powerDocs1.length} readings_power=${powerDocs2.length}`);
+
+    // Cubo 10 min — último doc por cubo
+    const deyeMap  = new Map();
+    const powerMap = new Map();
+    for (const doc of deyeDocs) {
+      const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
+      deyeMap.set(key, doc);
+    }
+    for (const doc of powerDocs) {
+      const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
+      powerMap.set(key, doc);
+    }
+
+    const H = 10 / 60; // horas por cubo → kWh
+    let pvGen = 0, grid = 0, bat = 0, clima = 0;
+
+    for (const doc of deyeMap.values()) {
+      const dm = doc.metrics ?? {};
+      pvGen += (dm.inverter?.totalW ?? 0) / 1000 * H;
+      grid  += (dm.grid?.totalW    ?? 0) / 1000 * H;
+      bat   += -(dm.battery?.powerW ?? 0) / 1000 * H;
+    }
+    for (const doc of powerMap.values()) {
+      clima += (doc.metrics?.clima?.potenciaTotalkW ?? 0) * H;
+    }
+
+    const generacion     = pvGen + Math.max(0, -bat);
+    const consumoOficina = pvGen + grid + bat;
+
+    console.log(`[totals] pvGen=${pvGen.toFixed(2)} grid=${grid.toFixed(2)} bat=${bat.toFixed(2)} clima=${clima.toFixed(2)}`);
+
+    res.json({
+      pvGeneration:     +pvGen.toFixed(2),
+      gridDemand:       +grid.toFixed(2),
+      batteryFlow:      +bat.toFixed(2),
+      climaConsumption: +clima.toFixed(2),
+      generacion:       +generacion.toFixed(2),
+      consumoOficina:   +consumoOficina.toFixed(2),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── /api/control/hvac ────────────────────────────────────────────────────────
+// Almacena la configuración en memoria (se pierde al reiniciar el servidor).
+// Para persistencia real, guardar en BD o en un fichero JSON.
+app.use(express.json());
+
+let hvacConfig = {
+  maquina:     false,  // coil 120 — arranque/paro general del equipo
+  setpoint:    22.0,
+  hysteresis:  1.0,    // banda simétrica — registro 39
+  compressors: [false, false, false, false],
+};
+
+app.get('/api/control/hvac', (req, res) => {
+  res.json(hvacConfig);
+});
+
+app.post('/api/control/hvac', (req, res) => {
+  const { maquina, setpoint, hysteresis, compressors } = req.body;
+  if (typeof maquina    === 'boolean') hvacConfig.maquina    = maquina;
+  if (typeof setpoint   === 'number')  hvacConfig.setpoint   = setpoint;
+  if (typeof hysteresis === 'number')  hvacConfig.hysteresis = hysteresis;
+  if (Array.isArray(compressors) && compressors.length === 4) hvacConfig.compressors = compressors;
+  console.log('[hvac-control]', JSON.stringify(hvacConfig));
+  res.json({ ok: true, config: hvacConfig });
+});
+
+// ── enviarConsigna() ─────────────────────────────────────────────────────────
+// Inserta el comando en la colección `consignas_log` con estado 'pendiente'.
+// El agente en la Raspberry Pi (agent-ciat.js) lo leerá, lo ejecutará sobre
+// el equipo CIAT y actualizará el documento con el resultado.
+async function enviarConsigna(config, origen) {
+  const doc = {
+    ts:          new Date(),
+    origen,                      // 'manual' | 'cron'
+    estado:      'pendiente',    // pendiente → ejecutado | error
+    maquina:     config.maquina,
+    setpoint:    config.setpoint,
+    hysteresis:  config.hysteresis,
+    compressors: config.compressors,
+    tsEjecutado: null,
+    resultado:   null,
+    error:       null,
+  };
+
+  const { insertedId } = await db.collection('consignas_log').insertOne(doc);
+  console.log(`[consigna] Encolada _id=${insertedId} origen=${origen} setpoint=${config.setpoint}°C`);
+  return insertedId;
+}
+
+// ── POST /api/consignas ──────────────────────────────────────────────────────
+// Llamado por el frontend al pulsar "Aplicar configuración".
+// Actualiza hvacConfig, llama a enviarConsigna() y devuelve el resultado.
+app.post('/api/consignas', async (req, res) => {
+  const { maquina, setpoint, hysteresis, compressors } = req.body;
+  if (typeof maquina    === 'boolean') hvacConfig.maquina    = maquina;
+  if (typeof setpoint   === 'number')  hvacConfig.setpoint   = setpoint;
+  if (typeof hysteresis === 'number')  hvacConfig.hysteresis = hysteresis;
+  if (Array.isArray(compressors) && compressors.length === 4) hvacConfig.compressors = compressors;
+
+  try {
+    await enviarConsigna(hvacConfig, 'manual');
+    res.json({ ok: true, config: hvacConfig });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message, config: hvacConfig });
+  }
+});
+
+// ── GET /api/consignas/log ───────────────────────────────────────────────────
+// Devuelve los últimos N envíos registrados (para auditoría/debug).
+app.get('/api/consignas/log', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 500);
+    const docs  = await db.collection('consignas_log')
+      .find({})
+      .sort({ ts: -1 })
+      .limit(limit)
+      .toArray();
+    res.json(docs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── /api/schedule  (CRUD programas horarios) ─────────────────────────────────
+app.get('/api/schedule', async (req, res) => {
+  try {
+    const docs = await db.collection('schedules').find({}).sort({ nombre: 1 }).toArray();
+    res.json(docs);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/schedule', async (req, res) => {
+  try {
+    const { nombre, activo = true, tipo = 'semanal', dias, fecha, tramos, ejecutado = false } = req.body;
+    const doc = { nombre, activo, tipo, dias, fecha: fecha || null, tramos: tramos || [], ejecutado };
+    const { insertedId } = await db.collection('schedules').insertOne(doc);
+    res.json({ ok: true, _id: insertedId });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/schedule/:id', async (req, res) => {
+  try {
+    const { nombre, activo, tipo, dias, fecha, tramos, ejecutado } = req.body;
+    console.log(`[PUT /api/schedule/${req.params.id}] nombre="${nombre}" tipo=${tipo} ejecutado=${ejecutado}`);
+    const result = await db.collection('schedules').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { nombre, activo, tipo, dias, fecha: fecha || null, tramos: tramos || [], ejecutado } }
+    );
+    console.log(`[PUT /api/schedule/${req.params.id}] matchedCount=${result.matchedCount} modifiedCount=${result.modifiedCount}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[PUT /api/schedule/${req.params.id}] ERROR:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/schedule/:id', async (req, res) => {
+  try {
+    await db.collection('schedules').deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Servir frontend (solo en producción) ────────────────────────────────────

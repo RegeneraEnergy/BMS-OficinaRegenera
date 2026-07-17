@@ -1,0 +1,508 @@
+/* ── Overlay ─────────────────────────────────────────────────────────────── */
+.hvac-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: hvac-fade-in 0.18s ease;
+}
+
+@keyframes hvac-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.hvac-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.20);
+  width: min(680px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  animation: hvac-slide-up 0.22s ease;
+  overflow: hidden;
+}
+
+@keyframes hvac-slide-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.hvac-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #ecfeff 0%, #f0fdf4 100%);
+  border-radius: 16px 16px 0 0;
+  flex-shrink: 0;
+}
+
+.hvac-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hvac-modal-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.hvac-modal-title h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.hvac-modal-sub {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+
+.hvac-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #94a3b8;
+  padding: 6px 8px;
+  border-radius: 8px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+.hvac-close-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.hvac-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 8px;
+}
+
+.hvac-loading {
+  padding: 40px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
+.hvac-section {
+  padding: 20px 0 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.hvac-section:last-child {
+  border-bottom: none;
+}
+
+.hvac-section-title {
+  margin: 0 0 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0891b2;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.hvac-section-desc {
+  margin: -8px 0 14px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+/* ── Row / Field ─────────────────────────────────────────────────────────── */
+.hvac-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.hvac-field {
+  flex: 1;
+  min-width: 180px;
+}
+
+.hvac-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.hvac-hint {
+  display: block;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+
+/* ── Máquina arranque/paro ───────────────────────────────────────────────── */
+.hvac-section-maquina {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-top: 16px;
+  border: 1.5px solid #e2e8f0;
+}
+
+.hvac-maquina-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hvac-maquina-estados {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hvac-estado-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hvac-estado-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hvac-estado-sep {
+  font-size: 1.1rem;
+  color: #cbd5e1;
+  margin-top: 14px;
+}
+
+.hvac-maquina-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hvac-maquina-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.hvac-maquina-status.on      .hvac-maquina-dot { background: #22c55e; box-shadow: 0 0 0 3px #bbf7d033; animation: pulse 1.5s infinite; }
+.hvac-maquina-status.off     .hvac-maquina-dot { background: #94a3b8; }
+.hvac-maquina-status.unknown .hvac-maquina-dot { background: #e2e8f0; }
+
+.hvac-maquina-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+.hvac-maquina-status.on      .hvac-maquina-label { color: #16a34a; }
+.hvac-maquina-status.off     .hvac-maquina-label { color: #64748b; }
+.hvac-maquina-status.unknown .hvac-maquina-label { color: #cbd5e1; }
+
+.hvac-maquina-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  letter-spacing: 0.2px;
+}
+.hvac-maquina-btn:active { transform: scale(0.97); }
+
+.hvac-maquina-btn.btn-arrancar {
+  background: #22c55e;
+  color: #fff;
+}
+.hvac-maquina-btn.btn-arrancar:hover { background: #16a34a; }
+
+.hvac-maquina-btn.btn-parar {
+  background: #ef4444;
+  color: #fff;
+}
+.hvac-maquina-btn.btn-parar:hover { background: #dc2626; }
+
+/* ── Stepper ─────────────────────────────────────────────────────────────── */
+.hvac-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  width: fit-content;
+  background: #f8fafc;
+}
+
+.hvac-step-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 38px;
+  height: 38px;
+  font-size: 1.2rem;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+  flex-shrink: 0;
+}
+.hvac-step-btn:hover {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.hvac-step-btn:active {
+  background: #bae6fd;
+}
+
+.hvac-step-value {
+  min-width: 80px;
+  text-align: center;
+  font-size: 1.0rem;
+  font-weight: 700;
+  color: #0f172a;
+  border-left: 1.5px solid #e2e8f0;
+  border-right: 1.5px solid #e2e8f0;
+  padding: 0 4px;
+  height: 38px;
+  line-height: 38px;
+  background: #fff;
+}
+
+/* ── Band visual ─────────────────────────────────────────────────────────── */
+.hvac-band-visual {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: #f0f9ff;
+  border-radius: 10px;
+  border: 1px solid #bae6fd;
+}
+
+.hvac-band-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #0369a1;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.hvac-band {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hvac-band-low,
+.hvac-band-high {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  min-width: 50px;
+}
+.hvac-band-high { text-align: right; }
+
+.hvac-band-bar {
+  flex: 1;
+  height: 12px;
+  background: linear-gradient(90deg, #bae6fd, #7dd3fc, #38bdf8, #7dd3fc, #bae6fd);
+  border-radius: 6px;
+  position: relative;
+}
+
+.hvac-band-setpoint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 20px;
+  background: #0369a1;
+  border-radius: 2px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #0369a1;
+}
+
+/* ── Compressors ─────────────────────────────────────────────────────────── */
+.hvac-compressors {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 540px) {
+  .hvac-compressors { grid-template-columns: repeat(2, 1fr); }
+}
+
+.hvac-compressor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border-radius: 12px;
+  border: 2px solid;
+  cursor: pointer;
+  transition: all 0.18s;
+  user-select: none;
+}
+
+.hvac-compressor.running {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.hvac-compressor.running:hover {
+  border-color: #86efac;
+  background: #dcfce7;
+}
+
+.hvac-compressor.forced-off {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.hvac-compressor.forced-off:hover {
+  border-color: #fca5a5;
+  background: #fee2e2;
+}
+
+.hvac-comp-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.hvac-comp-name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+}
+
+/* Toggle switch */
+.hvac-comp-toggle {
+  width: 40px;
+  height: 22px;
+  background: #cbd5e1;
+  border-radius: 11px;
+  position: relative;
+  transition: background 0.18s;
+  flex-shrink: 0;
+}
+.hvac-comp-toggle.active {
+  background: #ef4444;
+}
+
+.hvac-comp-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: left 0.18s;
+}
+.hvac-comp-toggle.active .hvac-comp-thumb {
+  left: 21px;
+}
+
+.hvac-comp-status {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.hvac-compressor.running   .hvac-comp-status { color: #16a34a; }
+.hvac-compressor.forced-off .hvac-comp-status { color: #dc2626; }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.hvac-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 0 0 16px 16px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.hvac-error {
+  font-size: 0.78rem;
+  color: #dc2626;
+  flex: 1;
+}
+.hvac-success {
+  font-size: 0.78rem;
+  color: #16a34a;
+  font-weight: 600;
+  flex: 1;
+}
+
+.hvac-footer-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.hvac-btn-cancel {
+  padding: 8px 18px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.hvac-btn-cancel:hover {
+  background: #f1f5f9;
+}
+
+.hvac-btn-save {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #0891b2;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
+}
+.hvac-btn-save:hover:not(:disabled) {
+  background: #0e7490;
+}
+.hvac-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

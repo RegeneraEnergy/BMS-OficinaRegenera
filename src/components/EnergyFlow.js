@@ -1,5 +1,6 @@
 import React from 'react';
 import './EnergyFlow.css';
+import buildingImg from '../assets/edificio.png';
 
 /* ─── Dot that travels along a SVG path ─── */
 function AnimatedDot({ path, color, duration, delay = 0, reverse = false }) {
@@ -26,8 +27,11 @@ export default function EnergyFlow({ data }) {
           gridDemand, batteryFlow, batteryLevel, exterior, interior } = data;
 
   const batteryCharging = batteryFlow > 0;
-  const co2Level = interior.co2 > 800 ? 'high' : interior.co2 > 600 ? 'medium' : 'good';
-  const co2Color  = co2Level === 'high' ? '#ef4444' : co2Level === 'medium' ? '#f59e0b' : '#22c55e';
+  const co2Level = interior.co2 > 1200 ? 'bad' : interior.co2 > 900 ? 'poor' : interior.co2 > 600 ? 'acceptable' : 'good';
+  const co2Color  = co2Level === 'bad' ? '#ef4444' : co2Level === 'poor' ? '#f97316' : co2Level === 'acceptable' ? '#eab308' : '#22c55e';
+  const generacion = pvGeneration + Math.max(0, -batteryFlow);
+  const consumoOficina = pvGeneration + gridDemand + batteryFlow;
+  const genPct = consumoOficina > 0 ? Math.round(generacion / consumoOficina * 100) : 0;
 
   /* ─── Layout constants (SVG viewBox = 1000 × 600, preserveAspectRatio="none")
      Each HTML node is positioned with top/left %.
@@ -56,12 +60,13 @@ export default function EnergyFlow({ data }) {
                 Grid      : left 11%  top 57%  → SVG (110, 342)
                 Building  : left 50%  top 38%  → SVG (500, 228)  ← hub
                 Battery   : left 83%  top 50%  → SVG (830, 300)
-                Clima     : left 50%  top 78%  → SVG (500, 468)
+                Clima     : left 66%  top  6%  → SVG (660, 36)
 
               Connection endpoints on building (approx at 1200 px container):
                 Building left wall  ~  SVG x 405, y 265
                 Building right wall ~  SVG x 595, y 265
                 Building roof-left  ~  SVG x 435, y 148
+                Building roof-right ~  SVG x 575, y 148
                 Building bottom     ~  SVG x 500, y 382
             */}
 
@@ -71,8 +76,8 @@ export default function EnergyFlow({ data }) {
             <path id="gridToOffice"  d="M 175 342 C 290 338 365 300 405 272" />
             {/* Building right wall → Battery */}
             <path id="officeToBat"   d="M 595 268 C 665 264 735 290 768 298" />
-            {/* Building bottom → Clima */}
-            <path id="officeToClima" d="M 500 382 C 500 402 500 420 500 428" />
+            {/* Building roof-right → Clima (HVAC) */}
+            <path id="officeToClima" d="M 575 148 C 600 130 630 105 660 96" />
           </defs>
 
           {/* PV → Office */}
@@ -189,132 +194,26 @@ export default function EnergyFlow({ data }) {
               <div className="interior-overlay-title">🏢 Interior Oficina</div>
               <div className="interior-overlay-vals">
                 <span>🌡️ <strong>{interior.temperature}°C</strong></span>
-                <span>💧 <strong>{interior.humidity}%</strong></span>
                 <span style={{ color: co2Color }}>🌿 <strong>{interior.co2} ppm</strong></span>
               </div>
               <div className="interior-overlay-air">
                 <span className="air-dot" style={{ background: co2Color }} />
                 Calidad del aire: <strong style={{ color: co2Color }}>
-                  {co2Level === 'good' ? 'Buena' : co2Level === 'medium' ? 'Moderada' : 'Deficiente'}
+                  {co2Level === 'good' ? 'Buena' : co2Level === 'acceptable' ? 'Aceptable' : co2Level === 'poor' ? 'Deficiente' : 'Mala'}
                 </strong>
               </div>
             </div>
 
-            <svg width="210" height="240" viewBox="0 0 210 240">
-              <defs>
-                <linearGradient id="facadeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%"   stopColor="#d4dfe9" />
-                  <stop offset="30%"  stopColor="#f0f5fa" />
-                  <stop offset="70%"  stopColor="#f0f5fa" />
-                  <stop offset="100%" stopColor="#d4dfe9" />
-                </linearGradient>
-                <linearGradient id="roofDeckGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%"   stopColor="#c8d6e0" />
-                  <stop offset="100%" stopColor="#b0c0cc" />
-                </linearGradient>
-                <linearGradient id="winGrad" x1="0%" y1="0%" x2="10%" y2="100%">
-                  <stop offset="0%"   stopColor="#ddeeff" stopOpacity="0.95" />
-                  <stop offset="100%" stopColor="#93c5fd" stopOpacity="0.75" />
-                </linearGradient>
-                <linearGradient id="pvCellGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%"   stopColor="#1e3a8a" />
-                  <stop offset="100%" stopColor="#1e40af" />
-                </linearGradient>
-                <linearGradient id="doorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%"   stopColor="#bfdbfe" />
-                  <stop offset="100%" stopColor="#93c5fd" />
-                </linearGradient>
-              </defs>
-
-              {/* Ground shadow */}
-              <ellipse cx="105" cy="236" rx="92" ry="6" fill="rgba(0,0,0,0.13)" />
-
-              {/* Steps */}
-              <rect x="62" y="229" width="86" height="5" rx="1.5" fill="#b8cad6" />
-              <rect x="68" y="224" width="74" height="6" rx="1.5" fill="#c8d8e4" />
-
-              {/* Building body */}
-              <rect x="12" y="86" width="186" height="140" fill="url(#facadeGrad)" stroke="#9ab0c0" strokeWidth="1.5" />
-
-              {/* Structural columns */}
-              <rect x="79"  y="86" width="5" height="140" fill="rgba(0,0,0,0.04)" />
-              <rect x="126" y="86" width="5" height="140" fill="rgba(0,0,0,0.04)" />
-
-              {/* Floor separators */}
-              {[121,156,191].map(y => (
-                <line key={y} x1="12" y1={y} x2="198" y2={y} stroke="#9ab0c0" strokeWidth="0.7" />
-              ))}
-
-              {/* Windows – 4 floors × 3 windows */}
-              {[0,1,2,3].map(floor => {
-                const yTop = 93 + floor * 35;
-                return [22, 89, 156].map(xLeft => (
-                  <g key={`w-${floor}-${xLeft}`}>
-                    <rect x={xLeft} y={yTop} width={46} height={22} rx="2"
-                      fill="url(#winGrad)" stroke="#64b5f6" strokeWidth="0.8" />
-                    <line x1={xLeft+23} y1={yTop}    x2={xLeft+23} y2={yTop+22} stroke="#90caf9" strokeWidth="0.6" opacity="0.5" />
-                    <line x1={xLeft}    y1={yTop+11}  x2={xLeft+46} y2={yTop+11} stroke="#90caf9" strokeWidth="0.6" opacity="0.5" />
-                    <line x1={xLeft+3}  y1={yTop+3}   x2={xLeft+16} y2={yTop+3}  stroke="white"   strokeWidth="1"   opacity="0.5" />
-                  </g>
-                ));
-              })}
-
-              {/* Ground floor – side windows */}
-              <rect x="22"  y="198" width="46" height="26" rx="2" fill="url(#winGrad)" stroke="#64b5f6" strokeWidth="0.8" />
-              <rect x="142" y="198" width="46" height="26" rx="2" fill="url(#winGrad)" stroke="#64b5f6" strokeWidth="0.8" />
-              <line x1="25"  y1="201" x2="38"  y2="201" stroke="white" strokeWidth="1" opacity="0.5" />
-              <line x1="145" y1="201" x2="158" y2="201" stroke="white" strokeWidth="1" opacity="0.5" />
-
-              {/* Entrance door */}
-              <rect x="82" y="194" width="46" height="32" rx="3" fill="url(#doorGrad)" stroke="#42a5f5" strokeWidth="1.2" />
-              <rect x="82" y="194" width="46" height="7"  rx="2" fill="rgba(21,101,192,0.35)" />
-              <rect x="85" y="203" width="18" height="23" rx="1.5" fill="#dbeafe" stroke="#90caf9" strokeWidth="0.8" />
-              <rect x="107" y="203" width="18" height="23" rx="1.5" fill="#dbeafe" stroke="#90caf9" strokeWidth="0.8" />
-              <circle cx="102" cy="215" r="1.8" fill="#1565c0" />
-              <circle cx="108" cy="215" r="1.8" fill="#1565c0" />
-
-              {/* Roof deck */}
-              <rect x="10" y="74" width="190" height="14" fill="url(#roofDeckGrad)" stroke="#8fa5b5" strokeWidth="1.5" rx="1" />
-              <rect x="10" y="82" width="190" height="4"  fill="#9ab5c5" />
-
-              {/* Solar panels */}
-              {[18,35,52,69].map(x => (
-                <rect key={`leg-${x}`} x={x} y={69} width="3" height="7" fill="#546e7a" rx="0.5" />
-              ))}
-              <rect x="14" y="14" width="84" height="58" rx="3" fill="#0f2060" stroke="#1d3a8a" strokeWidth="1.5" />
-              {[0,1,2,3].map(col => [0,1,2,3].map(row => (
-                <rect key={`pv-${col}-${row}`}
-                  x={16 + col * 20} y={16 + row * 13} width={18} height={11} rx="1"
-                  fill="url(#pvCellGrad)" stroke="#3b82f6" strokeWidth="0.5" />
-              )))}
-              <line x1="16" y1="16" x2="30" y2="16" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-              <rect x="45" y="69" width="12" height="7" rx="1" fill="#37474f" stroke="#546e7a" strokeWidth="0.8" />
-              <path d="M51,76 Q51,80 57,80" fill="none" stroke="#546e7a" strokeWidth="1.2" />
-
-              {/* HVAC unit */}
-              <rect x="110" y="34" width="82" height="40" rx="4" fill="#e8ecef" stroke="#8fa5ae" strokeWidth="1.5" />
-              <rect x="110" y="34" width="82" height="9"  rx="3" fill="#c8d5dc" stroke="#8fa5ae" strokeWidth="1" />
-              {[0,1,2,3,4].map(i => (
-                <line key={`vs-${i}`} x1="115" y1={47+i*5} x2="123" y2={47+i*5}
-                  stroke="#6d8896" strokeWidth="1.2" strokeLinecap="round" />
-              ))}
-              <circle cx="162" cy="54" r="17" fill="#dce5ea" stroke="#8fa5ae" strokeWidth="1.2" />
-              <circle cx="162" cy="54" r="14" fill="#e8ecef" stroke="#a0b8c2" strokeWidth="0.8" />
-              <path d="M162,54 L162,43 A5,5 0 0,1 170,48 Z" fill="#7090a0" opacity="0.85" />
-              <path d="M162,54 L173,54 A5,5 0 0,1 168,62 Z" fill="#7090a0" opacity="0.85" />
-              <path d="M162,54 L162,65 A5,5 0 0,1 154,60 Z" fill="#7090a0" opacity="0.85" />
-              <path d="M162,54 L151,54 A5,5 0 0,1 156,46 Z" fill="#7090a0" opacity="0.85" />
-              <circle cx="162" cy="54" r="3.5" fill="#455a64" />
-              <circle cx="162" cy="54" r="1.5" fill="#78909c" />
-              <rect x="130" y="72" width="9" height="7" rx="1.5" fill="#8fa5ae" stroke="#7090a0" strokeWidth="0.8" />
-              <rect x="145" y="72" width="9" height="7" rx="1.5" fill="#8fa5ae" stroke="#7090a0" strokeWidth="0.8" />
-              <rect x="110" y="42" width="3" height="24" rx="1" fill="#4caf50" opacity="0.7" />
-            </svg>
+            <img
+              src={buildingImg}
+              alt="Edificio Oficina Regenera"
+              className="building-photo"
+            />
 
             <div className="office-data-badge">
               <div className="office-label">Consumo Oficina</div>
               <div className="office-consumption">
-                <span className="office-value">{totalConsumption.toFixed(2)}</span>
+                <span className="office-value">{consumoOficina.toFixed(2)}</span>
                 <span className="unit">kW</span>
               </div>
               <div className="office-sublabel">Consumo total</div>
@@ -346,8 +245,8 @@ export default function EnergyFlow({ data }) {
           </div>
         </div>
 
-        {/* ⑤ Clima — bottom-center */}
-        <div className="node" style={{ top: '78%', left: '50%' }}>
+        {/* ⑤ Clima — top-right (HVAC) */}
+        <div className="node" style={{ top: '16%', left: '66%' }}>
           <div className="node-card clima-card">
             <div className="node-icon">
               <svg width="44" height="32" viewBox="0 0 44 32">
@@ -390,20 +289,6 @@ export default function EnergyFlow({ data }) {
                 <div className="cond-label">Temperatura</div>
               </div>
             </div>
-            <div className="cond-item">
-              <span className="cond-icon">💧</span>
-              <div>
-                <div className="cond-value">{exterior.humidity}%</div>
-                <div className="cond-label">Humedad</div>
-              </div>
-            </div>
-            <div className="cond-item">
-              <span className="cond-icon">☀️</span>
-              <div>
-                <div className="cond-value">{exterior.radiation} W/m²</div>
-                <div className="cond-label">Radiación solar</div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -413,23 +298,20 @@ export default function EnergyFlow({ data }) {
           <div className="balance-bar-container">
             <div className="balance-bar">
               <div className="balance-fill" style={{
-                width: `${Math.min(100, (pvGeneration / (totalConsumption || 1)) * 100)}%`,
-                background: pvGeneration >= totalConsumption
+                width: `${Math.min(100, genPct)}%`,
+                background: genPct >= 100
                   ? 'linear-gradient(90deg,#22c55e,#86efac)'
                   : 'linear-gradient(90deg,#f59e0b,#fbbf24)'
               }} />
             </div>
+            <span className="balance-bar-pct">{genPct}%</span>
           </div>
           <div className="balance-stats">
-            <span className="balance-pv">☀️ FV: {pvGeneration.toFixed(2)} kW</span>
+            <span className="balance-pv">☀️ Generación: {generacion.toFixed(2)} kW</span>
             <span className="balance-sep">|</span>
-            <span className="balance-consumption">⚡ Consumo: {totalConsumption.toFixed(2)} kW</span>
+            <span className="balance-consumption">⚡ Consumo: {consumoOficina.toFixed(2)} kW</span>
             <span className="balance-sep">|</span>
-            <span className={`balance-delta ${pvGeneration >= totalConsumption ? 'surplus' : 'deficit'}`}>
-              {pvGeneration >= totalConsumption
-                ? `+${(pvGeneration - totalConsumption).toFixed(2)} kW excedente`
-                : `-${(totalConsumption - pvGeneration).toFixed(2)} kW déficit`}
-            </span>
+            <span className="balance-grid">🔌 Demanda de red: {gridDemand.toFixed(2)} kW</span>
           </div>
         </div>
 

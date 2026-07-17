@@ -7,7 +7,7 @@ import HistoricalData from './components/HistoricalData';
 import { generateRealTimeData } from './data/mockData';
 
 const REFRESH_INTERVAL = 10000; // 10 segundos
-const API_BASE = 'http://localhost:3001';
+const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
 
 async function fetchLive() {
   const res = await fetch(`${API_BASE}/api/live`);

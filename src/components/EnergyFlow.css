@@ -128,7 +128,7 @@
 .unit        { font-size: 0.68rem; font-weight: 400; color: #94a3b8; margin-left: 2px; }
 
 .pv-value     { color: #d97706; }
-.grid-value   { color: #2563eb; }
+.grid-value   { color: #1e293b; }
 .bat-discharge{ color: #7c3aed; }
 .clima-value  { color: #0891b2; }
 
@@ -178,6 +178,15 @@
 }
 .office-building svg {
   filter: drop-shadow(0 10px 22px rgba(0,0,0,0.18));
+}
+.building-photo {
+  width: 380px;
+  height: 420px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 12px;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,0.22));
+  display: block;
 }
 
 /* Interior conditions — overlaid on the building body */
@@ -240,7 +249,7 @@
 .office-label       { font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
 .office-consumption { font-size: 1.5rem; font-weight: 800; color: #1e293b;
                       display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-top: 2px; }
-.office-value       { color: #1e293b; }
+.office-value       { color: #2563eb; }
 .office-sublabel    { font-size: 0.63rem; color: #94a3b8; margin-top: 1px; }
 
 /* ═══════════════════════════════
@@ -291,8 +300,10 @@
   text-align: center;
 }
 .balance-label { font-size: 0.66rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px; }
-.balance-bar   { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.balance-bar-container { position: relative; margin-bottom: 8px; }
+.balance-bar   { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
 .balance-fill  { height: 100%; border-radius: 3px; transition: width 1s ease; }
+.balance-bar-pct { position: absolute; right: 0; top: -18px; font-size: 0.72rem; font-weight: 700; color: #1e293b; }
 .balance-stats { display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 0.74rem; }
 .balance-pv          { color: #d97706; font-weight: 700; }
 .balance-consumption { color: #2563eb; font-weight: 700; }

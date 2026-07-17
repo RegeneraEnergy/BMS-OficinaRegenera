@@ -1,70 +1,155 @@
-# Getting Started with Create React App
+# BMS Oficina Regenera
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Sistema de monitorización y control del edificio para Oficina Regenera. Gestiona el inversor solar Deye, el climatizador CIAT y el almacenamiento de baterías mediante un dashboard React + API Express + MongoDB.
 
-## Available Scripts
+## Arquitectura
 
-In the project directory, you can run:
+```
+Navegador (React)
+      │  HTTP
+      ▼
+  server.js  ──── MongoDB (192.168.1.110) ◄──── agent-ciat.js
+  puerto 3001         Oficina-REGENERA            (Raspberry Pi)
+                                                       │
+                                               Modbus TCP 502
+                                                       │
+                                                  CIAT HVAC
+```
 
-### `npm start`
+- **`server.js`** — API REST + sirve el frontend en producción. Corre en cualquier PC con acceso a la red.
+- **`agent-ciat.js`** — Agente de la Raspberry Pi. Lee la cola de comandos de MongoDB, ejecuta consignas Modbus al CIAT y gestiona el cron de horarios automáticos.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Mapa Modbus CIAT
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+| Dirección | Tipo | Descripción |
+|---|---|---|
+| 65 | Coil | Arranque/paro máquina (true = arrancar, modpoll 66) |
+| 15 | Holding Register | Setpoint temperatura × 10 (22.5 °C → 225, modpoll 16) |
+| 39 | Holding Register | Histéresis simétrica × 10 |
+| 330–333 | Coil | Forzar apagado compresores 1–4 |
 
-### `npm test`
+> Las direcciones son base 0 (PDU). `modpoll-classic` usa base 1: añadir +1 al usar en CLI.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Requisitos previos
 
-### `npm run build`
+- Node.js 18+
+- MongoDB 6+ (en la Raspberry Pi, accesible en el puerto 27017)
+- PM2 (`npm install -g pm2`) — solo en la Pi
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Instalación y despliegue
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 1. Clonar el repositorio
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+git clone <url-del-repositorio>
+cd frontend
+npm install
+```
 
-### `npm run eject`
+### 2. Servidor web (modo desarrollo)
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Arranca simultáneamente el servidor API y el frontend de React:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+npm start
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Accesible en `http://localhost:3000` (React dev server con proxy a la API en puerto 3001).
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 3. Servidor web (modo producción)
 
-## Learn More
+```bash
+npm run build
+npm run start:prod
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Accesible desde cualquier navegador en `http://<ip-servidor>:3001`.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+El frontend compilado es servido directamente por `server.js` en el mismo puerto que la API.
 
-### Code Splitting
+### 4. Agente Raspberry Pi
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+La Pi necesita los siguientes archivos del repositorio:
 
-### Analyzing the Bundle Size
+- `agent-ciat.js`
+- `ecosystem.pi.config.js`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```bash
+# En la Pi, dentro de ~/bms/
+npm install modbus-serial mongodb node-cron
 
-### Making a Progressive Web App
+pm2 start ecosystem.pi.config.js
+pm2 save
+pm2 startup   # habilita arranque automático tras reinicio
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Para ver los logs en tiempo real:
 
-### Advanced Configuration
+```bash
+pm2 logs agent-ciat
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## Variables de entorno
 
-### Deployment
+Todas tienen valores por defecto funcionales. Solo es necesario configurarlas si la red o la base de datos difieren.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### server.js
 
-### `npm run build` fails to minify
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `MONGO_URI` | `mongodb://192.168.1.110:27017` | URI de MongoDB |
+| `DB_NAME` | `Oficina-REGENERA` | Nombre de la base de datos |
+| `PORT` | `3001` | Puerto del servidor API |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### agent-ciat.js (ecosystem.pi.config.js)
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `MONGO_URI` | `mongodb://127.0.0.1:27017` | URI de MongoDB (local en la Pi) |
+| `DB_NAME` | `Oficina-REGENERA` | Nombre de la base de datos |
+| `CIAT_IP` | `169.254.226.19` | IP del equipo CIAT (link-local) |
+| `CIAT_PORT` | `502` | Puerto Modbus TCP |
+| `CIAT_UNIT_ID` | `1` | ID de unidad Modbus |
+| `POLL_MS` | `30000` | Intervalo de polling de la cola (ms) |
+
+## Colecciones MongoDB
+
+| Colección | Descripción |
+|---|---|
+| `readings` | Lecturas de inversor Deye y CIAT (métricas en tiempo real) |
+| `readings_power` | Potencia eléctrica del clima |
+| `consignas_log` | Cola de comandos pendientes/ejecutados hacia el CIAT |
+| `schedules` | Programas de horarios (semanal/puntual) |
+
+## Funcionalidades
+
+- **Dashboard en tiempo real** — flujo de energía solar, red, batería y climatización
+- **Histórico de datos** — gráficas configurables con granularidad seleccionable (5 min, 15 min, diaria, mensual…)
+- **Control manual HVAC** — setpoint, histéresis y control por compresor
+- **Programador de horarios** — tramos múltiples por día, modo semanal y puntual, con arranque/paro y configuración independiente por tramo
+
+## Estructura de un horario (colección `schedules`)
+
+```json
+{
+  "nombre": "Horario laboral",
+  "activo": true,
+  "tipo": "semanal",
+  "dias": [1, 2, 3, 4, 5],
+  "fecha": null,
+  "ejecutado": false,
+  "tramos": [
+    {
+      "horaInicio": "07:00",
+      "horaFin": "20:00",
+      "arrancarMaquina": true,
+      "pararMaquina": true,
+      "setpoint": 22.0,
+      "hysteresis": 1.0,
+      "compressors": [false, false, false, false]
+    }
+  ]
+}
+```
+
+Para horarios `puntual`, usar `"tipo": "puntual"` y `"fecha": "YYYY-MM-DD"`. El campo `ejecutado` se pone a `true` automáticamente cuando el agente ejecuta el último tramo; se resetea a `false` al guardar desde el frontend.

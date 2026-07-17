@@ -66,6 +66,38 @@
   color: #64748b;
 }
 
+.hvac-control-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #a5f3fc;
+  background: #ecfeff;
+  color: #0891b2;
+}
+.hvac-control-btn:hover {
+  background: #cffafe;
+  border-color: #67e8f9;
+}
+
+.schedule-control-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #16a34a;
+}
+.schedule-control-btn:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
 .toggle-table-btn,
 .download-btn {
   padding: 6px 14px;
@@ -195,6 +227,39 @@
 }
 
 .filter-preset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Selector de granulometría ──────────────────────────────────────────────── */
+.granularity-selector {
+  display: flex;
+  gap: 2px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.granularity-btn {
+  padding: 4px 9px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.granularity-btn:hover:not(.active):not(:disabled) { color: #1e293b; }
+.granularity-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.granularity-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
 
 .loading-indicator { color: #94a3b8; font-style: italic; }
 
@@ -504,11 +569,25 @@
 
 .badge-remove:hover { opacity: 1; }
 
+/* ── Fila superior del selector (acciones + sub-fuentes en la misma línea) ── */
+.selector-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.selector-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
 /* ── Sub-fuentes (Clima / Energía dentro del tab Clima) ────────────────────── */
 .subsource-bar {
   display: flex;
   gap: 4px;
-  margin-bottom: 12px;
   background: #f1f5f9;
   border-radius: 10px;
   padding: 4px;

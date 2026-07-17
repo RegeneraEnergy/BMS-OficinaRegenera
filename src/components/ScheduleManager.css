@@ -1,0 +1,572 @@
+/* ── Overlay ─────────────────────────────────────────────────────────────── */
+.sch-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: sch-fade 0.18s ease;
+}
+@keyframes sch-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.sch-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.20);
+  width: min(700px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  animation: sch-up 0.22s ease;
+  overflow: hidden;
+}
+@keyframes sch-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.sch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+  flex-shrink: 0;
+}
+.sch-title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sch-icon { font-size: 1.8rem; line-height: 1; }
+.sch-title-block h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+.sch-sub {
+  display: block;
+  font-size: 0.72rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+.sch-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #94a3b8;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+.sch-close-btn:hover { background: #f1f5f9; color: #1e293b; }
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.sch-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+.sch-loading, .sch-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+.sch-empty span { font-size: 2rem; display: block; margin-bottom: 12px; }
+.sch-empty p { line-height: 1.6; margin: 0; }
+
+/* ── Lista de programas ──────────────────────────────────────────────────── */
+.sch-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+
+.sch-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid;
+  gap: 12px;
+  transition: opacity 0.2s;
+}
+.sch-card.activo  { border-color: #bbf7d0; background: #f0fdf4; }
+.sch-card.inactivo { border-color: #e2e8f0; background: #f8fafc; opacity: 0.65; }
+
+.sch-card-main { flex: 1; min-width: 0; }
+.sch-card-nombre {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sch-card-dias { display: flex; gap: 4px; margin-bottom: 6px; }
+.sch-card-horas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+.sch-hora-arranque { color: #16a34a; font-weight: 600; }
+.sch-hora-paro     { color: #dc2626; font-weight: 600; }
+.sch-hora-sep      { color: #cbd5e1; }
+.sch-setpoint-badge {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.sch-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Día chips ───────────────────────────────────────────────────────────── */
+.sch-dia-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+.sch-dia-chip.on  { background: #16a34a; color: #fff; }
+.sch-dia-chip.off { background: #e2e8f0; color: #94a3b8; }
+
+/* ── Toggle ──────────────────────────────────────────────────────────────── */
+.sch-toggle {
+  width: 40px;
+  height: 22px;
+  background: #cbd5e1;
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.18s;
+  flex-shrink: 0;
+}
+.sch-toggle.on { background: #16a34a; }
+.sch-toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 16px; height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: left 0.18s;
+}
+.sch-toggle.on .sch-toggle-thumb { left: 21px; }
+
+/* ── Botones de icono ────────────────────────────────────────────────────── */
+.sch-icon-btn {
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 5px 8px;
+  font-size: 0.85rem;
+  transition: background 0.12s;
+}
+.sch-icon-btn.edit:hover { background: #eff6ff; }
+.sch-icon-btn.del:hover  { background: #fef2f2; }
+
+/* ── Formulario ──────────────────────────────────────────────────────────── */
+.sch-form {
+  border: 1.5px solid #e0f2fe;
+  border-radius: 12px;
+  background: #f0f9ff;
+  padding: 20px;
+  margin-top: 4px;
+}
+.sch-form-title {
+  margin: 0 0 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0369a1;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.sch-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.sch-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+@media (max-width: 480px) { .sch-form-grid { grid-template-columns: 1fr; } }
+
+.sch-label {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.sch-input {
+  padding: 8px 10px;
+  border: 1.5px solid #bae6fd;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  background: #fff;
+  color: #0f172a;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.sch-input:focus { outline: none; border-color: #0891b2; }
+
+.sch-input-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sch-input-unit span { font-size: 0.85rem; color: #64748b; white-space: nowrap; }
+.sch-input-unit .sch-input { flex: 1; }
+
+/* Selector de días */
+.sch-dias-selector { display: flex; gap: 6px; flex-wrap: wrap; }
+.sch-dia-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sch-dia-btn.on {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+.sch-dia-btn:hover:not(.on) { border-color: #94a3b8; background: #f1f5f9; }
+
+.sch-error {
+  font-size: 0.78rem;
+  color: #dc2626;
+  margin-bottom: 10px;
+}
+
+.sch-form-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.sch-btn-cancel {
+  padding: 8px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sch-btn-cancel:hover { background: #f1f5f9; }
+.sch-btn-save {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #0891b2;
+  color: #fff;
+  font-size: 0.83rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
+}
+.sch-btn-save:hover:not(:disabled) { background: #0e7490; }
+.sch-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.sch-footer {
+  padding: 14px 24px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.sch-btn-new {
+  padding: 9px 20px;
+  border: 1.5px solid #16a34a;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #16a34a;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.sch-btn-new:hover { background: #dcfce7; }
+.sch-footer-hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+/* ── Tipo de programa ────────────────────────────────────────────────────── */
+.sch-tipo-selector {
+  display: flex;
+  gap: 8px;
+}
+.sch-tipo-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.sch-tipo-btn:hover:not(.on) { border-color: #94a3b8; background: #f8fafc; }
+.sch-tipo-btn.on {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #2563eb;
+}
+
+/* ── Badges en tarjeta ───────────────────────────────────────────────────── */
+.sch-tipo-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.sch-tipo-badge.puntual  { background: #fef9c3; color: #854d0e; }
+.sch-tipo-badge.ejecutado { background: #dcfce7; color: #166534; }
+
+/* ── Fecha en tarjeta ────────────────────────────────────────────────────── */
+.sch-card-fecha {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #854d0e;
+  margin-bottom: 6px;
+}
+
+/* ── Tramos en tarjeta ───────────────────────────────────────────────────── */
+.sch-card-tramos {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sch-card-tramo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+
+/* ── Tramos en formulario ────────────────────────────────────────────────── */
+.sch-tramos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sch-tramo-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fff;
+  border: 1.5px solid #bae6fd;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.sch-tramo-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: #0891b2;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 18px;
+}
+
+.sch-tramo-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sch-tramo-times {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sch-tramo-time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sch-tramo-time-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.sch-tramo-arrow {
+  font-size: 1rem;
+  color: #94a3b8;
+  padding-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.sch-tramo-params {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sch-tramo-param-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 110px;
+}
+
+.sch-input-sm {
+  padding: 6px 8px !important;
+  font-size: 0.82rem !important;
+}
+
+.sch-tramo-del {
+  background: none;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 4px 7px;
+  transition: background 0.12s;
+  flex-shrink: 0;
+  margin-top: 16px;
+}
+.sch-tramo-del:hover { background: #fef2f2; }
+
+.sch-btn-add-tramo {
+  padding: 8px 14px;
+  border: 1.5px dashed #0891b2;
+  border-radius: 8px;
+  background: transparent;
+  color: #0891b2;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  text-align: left;
+}
+.sch-btn-add-tramo:hover { background: #e0f2fe; }
+
+/* ── Opciones de tramo (checkboxes arrancar/parar) ───────────────────────── */
+.sch-tramo-opts {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sch-tramo-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+.sch-tramo-check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #0891b2;
+  cursor: pointer;
+}
+
+/* ── Compresores por tramo ───────────────────────────────────────────────── */
+.sch-tramo-comp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sch-comp-btns {
+  display: flex;
+  gap: 6px;
+}
+.sch-comp-btn {
+  width: 32px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sch-comp-btn:hover:not(.forced) { border-color: #94a3b8; background: #f1f5f9; }
+.sch-comp-btn.forced {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #dc2626;
+}
+
+/* ── Badge de compresores en tarjeta ─────────────────────────────────────── */
+.sch-comp-off-badge {
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.sch-hora-cambio {
+  color: #d97706;
+  font-weight: 600;
+}
