@@ -31,6 +31,7 @@ module.exports = {
         PORT:       3001,
         MONGO_URI:  'mongodb://127.0.0.1:27017',   // ← MongoDB local en el servidor nube
         DB_NAME:    'Oficina-REGENERA',
+        TZ:         'Europe/Madrid',               // ← horas del histórico en hora española
         // ⚠️  CAMBIA ESTE VALOR antes de arrancar en producción:
         JWT_SECRET: 'CAMBIA_ESTO_POR_UNA_CLAVE_SECRETA_ALEATORIA_DE_64_CARACTERES',
       },
