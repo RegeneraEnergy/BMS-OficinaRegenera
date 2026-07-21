@@ -20,11 +20,23 @@ export default function HVACControl({ onClose }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/control/hvac`);
-      if (res.ok) {
-        const data = await res.json();
-        setConfig(data);
+      // Cargamos config y estado real en paralelo.
+      // hvacConfig (servidor) puede tener maquina:false tras un reinicio o si la máquina
+      // fue encendida por un horario automático (el cron no actualiza hvacConfig).
+      // Por eso usamos el estado real de la BD como fuente de verdad para config.maquina.
+      const [configRes, liveRes] = await Promise.all([
+        fetch(`${API_BASE}/api/control/hvac`),
+        fetch(`${API_BASE}/api/live`),
+      ]);
+      const data = configRes.ok ? await configRes.json() : { ...DEFAULT_CONFIG };
+      if (liveRes.ok) {
+        const live = await liveRes.json();
+        if (live.maquinaArrancada !== undefined) {
+          data.maquina = live.maquinaArrancada;
+          setMaquinaReal(live.maquinaArrancada);
+        }
       }
+      setConfig(data);
     } catch (_e) {
       // usa defaults
     } finally {
@@ -32,7 +44,7 @@ export default function HVACControl({ onClose }) {
     }
   }, []);
 
-  // Estado real de la máquina según la BD (campo "Not Syson 1")
+  // Refresco periódico del estado real (solo para el indicador, no sobreescribe config)
   const loadEstadoReal = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/live`);
@@ -46,7 +58,6 @@ export default function HVACControl({ onClose }) {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    loadEstadoReal();
     const id = setInterval(loadEstadoReal, 10_000);
     return () => clearInterval(id);
   }, [loadEstadoReal]);
