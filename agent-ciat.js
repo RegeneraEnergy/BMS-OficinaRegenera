@@ -179,7 +179,12 @@ function iniciarCron() {
           if (tramo.horaFin === hhmm && tramo.pararMaquina !== false) {
             const tramoContinua = tramos.some(t => t !== tramo && t.horaInicio === hhmm);
             if (!tramoContinua && !enviadoParo) {
-              const cmd = { ...estadoActual, maquina: false };
+              const cmd = {
+                maquina:     false,
+                setpoint:    tramo.setpoint    ?? estadoActual.setpoint,
+                hysteresis:  tramo.hysteresis  ?? estadoActual.hysteresis,
+                compressors: tramo.compressors ?? estadoActual.compressors,
+              };
               console.log(`[cron][${tipo}] "${p.nombre}" paro ${hhmm}`);
               await ejecutarEnCIAT(cmd).catch(e => console.error('[cron]', e.message));
               enviadoParo = true;
