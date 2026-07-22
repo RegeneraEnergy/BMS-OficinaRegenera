@@ -2,15 +2,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
-  height: 72px;
+  padding: 12px 32px 0;
+  height: 96px;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   position: sticky;
   top: 0;
   z-index: 100;
-  border-top: 3px solid #8cbd31;
+  border-top: 4px solid #8cbd31;
 }
 
 .header-left {
@@ -20,9 +20,10 @@
 }
 
 .header-logo {
-  height: 128px;
+  height: 58px;
   width: auto;
   display: block;
+  margin-top: 4px;
 }
 
 .header-divider {
@@ -83,6 +84,24 @@
 
 .header-time {
   text-align: right;
+}
+
+.deploy-trigger-btn {
+  background: #8cbd31;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  letter-spacing: 0.3px;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.deploy-trigger-btn:hover {
+  background: #7aab25;
+  transform: translateY(-1px);
 }
 
 .logout-btn {

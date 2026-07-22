@@ -1,0 +1,73 @@
+name: Deploy BMS Oficina Regenera
+
+on:
+  repository_dispatch:
+    types: [deploy-bms]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Rama a desplegar'
+        required: false
+        default: 'main'
+
+jobs:
+  deploy:
+    name: Build & Deploy to Azure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.branch || github.event.inputs.branch || 'main' }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar React
+        run: npm run build
+
+      - name: Preparar paquete de producción
+        run: |
+          mkdir -p /tmp/bms-deploy
+          cp server.js package.json package-lock.json /tmp/bms-deploy/
+          cp -r build /tmp/bms-deploy/
+          cd /tmp/bms-deploy
+          npm ci --omit=dev
+
+      - name: Crear ZIP de despliegue
+        run: |
+          cd /tmp/bms-deploy
+          zip -r /tmp/deploy.zip .
+          echo "Tamaño ZIP: $(du -sh /tmp/deploy.zip | cut -f1)"
+
+      - name: Login en Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Desplegar a Azure App Service
+        run: |
+          az webapp deploy \
+            --name bms-oficina-regenera \
+            --resource-group rg-bms-oficina \
+            --src-path /tmp/deploy.zip \
+            --type zip \
+            --timeout 300
+
+      - name: Verificar despliegue
+        run: |
+          sleep 20
+          RESP=$(curl -sf https://bms.appregenera.com/api/health || echo '{"status":"error"}')
+          echo "Health: $RESP"
+          echo "$RESP" | grep -q '"db":true' && echo "OK: DB conectada" || echo "AVISO: revisar logs"
+
+      - name: Logout Azure
+        if: always()
+        run: az logout

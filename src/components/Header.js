@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Header.css';
 
-export default function Header({ lastUpdate, apiStatus, onLogout }) {
+export default function Header({ lastUpdate, apiStatus, onLogout, onDeploy }) {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -36,6 +36,12 @@ export default function Header({ lastUpdate, apiStatus, onLogout }) {
             <div className="last-update">Actualizado: {new Date(lastUpdate).toLocaleTimeString('es-ES')}</div>
           )}
         </div>
+
+        {onDeploy && (
+          <button className="deploy-trigger-btn" onClick={onDeploy} title="Panel de despliegue">
+            Desplegar
+          </button>
+        )}
 
         {onLogout && (
           <button className="logout-btn" onClick={onLogout} title="Cerrar sesión">

@@ -5,6 +5,7 @@ import StatsBar from './components/StatsBar';
 import EnergyFlow from './components/EnergyFlow';
 import HistoricalData from './components/HistoricalData';
 import Login from './components/Login';
+import DeployPanel from './components/DeployPanel';
 import { generateRealTimeData } from './data/mockData';
 
 const REFRESH_INTERVAL = 10000; // 10 segundos
@@ -44,8 +45,9 @@ export default function App() {
 }
 
 function Dashboard({ onLogout }) {
-  const [liveData, setLiveData]   = useState(null);
-  const [apiStatus, setApiStatus] = useState('connecting');
+  const [liveData, setLiveData]     = useState(null);
+  const [apiStatus, setApiStatus]   = useState('connecting');
+  const [showDeploy, setShowDeploy] = useState(false);
 
   const refreshLive = useCallback(async () => {
     try {
@@ -67,7 +69,13 @@ function Dashboard({ onLogout }) {
 
   return (
     <div className="app">
-      <Header lastUpdate={liveData?.timestamp} apiStatus={apiStatus} onLogout={onLogout} />
+      <Header
+        lastUpdate={liveData?.timestamp}
+        apiStatus={apiStatus}
+        onLogout={onLogout}
+        onDeploy={() => setShowDeploy(true)}
+      />
+      {showDeploy && <DeployPanel onClose={() => setShowDeploy(false)} />}
       <main className="main-content">
         <StatsBar data={liveData} />
         <EnergyFlow data={liveData} />

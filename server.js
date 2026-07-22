@@ -40,6 +40,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get('/api/health', (req, res) => {
+  res.json({ status: dbReady ? 'ok' : 'starting', db: dbReady });
+});
+
 // ── Autenticación ─────────────────────────────────────────────────────────────
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body ?? {};
@@ -51,12 +56,21 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.use('/api', (req, res, next) => {
+  if (req.path === '/health') return next();
   if (req.path.startsWith('/auth/')) return next();
   requireAuth(req, res, next);
 });
 
+// 503 mientras MongoDB no esté lista
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health' || req.path.startsWith('/auth/')) return next();
+  if (!dbReady) return res.status(503).json({ error: 'Base de datos no disponible todavía. Inténtalo en unos segundos.' });
+  next();
+});
+
 let db;
 let connectedUri = null;
+let dbReady = false;
 
 async function connectMongo() {
   for (const uri of MONGO_URIS) {
@@ -72,15 +86,21 @@ async function connectMongo() {
   throw new Error(`No se pudo conectar a ningún servidor MongoDB. URIs probadas: ${MONGO_URIS.join(', ')}`);
 }
 
-connectMongo()
-  .then(database => {
-    db = database;
-    app.listen(PORT, () => console.log(`[API] Escuchando en http://localhost:${PORT}  (BD: ${connectedUri}/${DB_NAME})`));
-  })
-  .catch(err => {
-    console.error('[FATAL]', err.message);
-    process.exit(1);
-  });
+// Arrancar HTTP inmediatamente para que Azure App Service pase el health check
+app.listen(PORT, () => console.log(`[API] Escuchando en http://localhost:${PORT}`));
+
+// Conectar MongoDB en background (no bloquea el arranque del servidor)
+(async () => {
+  try {
+    db = await connectMongo();
+    dbReady = true;
+    console.log(`[API] BD lista: ${connectedUri}/${DB_NAME}`);
+  } catch (err) {
+    console.error('[FATAL] MongoDB no disponible:', err.message);
+    // No exit(1): el servidor HTTP sigue vivo para health checks.
+    // Las rutas de API devolverán 503 hasta que la BD conecte.
+  }
+})();
 
 // ── /api/debug ──────────────────────────────────────────────────────────────
 app.get('/api/debug', async (req, res) => {
@@ -537,9 +557,62 @@ app.delete('/api/schedule/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Panel de despliegue (admin) ──────────────────────────────────────────────
+app.get('/api/admin/deploy/status', requireAuth, async (req, res) => {
+  try {
+    const last = await db.collection('deploy_log').findOne({}, { sort: { ts: -1 } });
+    res.json({
+      lastDeploy: last ? new Date(last.ts).toLocaleString('es-ES') : null,
+      branch:     last?.branch  || null,
+      status:     last?.status  || null,
+    });
+  } catch (_) {
+    res.json({ lastDeploy: null, branch: null, status: null });
+  }
+});
+
+app.post('/api/admin/deploy', requireAuth, async (req, res) => {
+  const { branch = 'main' } = req.body;
+  const GH_TOKEN = process.env.GITHUB_TOKEN;
+  const GH_REPO  = process.env.GITHUB_REPO; // e.g. "usuario/BMS-OficinaRegenera"
+
+  try {
+    await db.collection('deploy_log').insertOne({ ts: new Date(), branch, status: 'triggered' });
+  } catch (_) {}
+
+  if (!GH_TOKEN || !GH_REPO) {
+    return res.json({
+      ok:    false,
+      error: 'GitHub Actions no configurado. Define GITHUB_TOKEN y GITHUB_REPO en las variables de entorno de Azure.',
+    });
+  }
+
+  try {
+    const ghRes = await fetch(`https://api.github.com/repos/${GH_REPO}/dispatches`, {
+      method:  'POST',
+      headers: {
+        Authorization:  `Bearer ${GH_TOKEN}`,
+        Accept:         'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent':   'BMS-OficinaRegenera',
+      },
+      body: JSON.stringify({ event_type: 'deploy-bms', client_payload: { branch } }),
+    });
+    if (ghRes.status === 204) {
+      try { await db.collection('deploy_log').updateOne({ ts: { $gte: new Date(Date.now() - 5000) } }, { $set: { status: 'dispatched' } }); } catch (_) {}
+      res.json({ ok: true });
+    } else {
+      const txt = await ghRes.text();
+      res.json({ ok: false, error: `GitHub API ${ghRes.status}: ${txt}` });
+    }
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
 // ── Servir frontend (solo en producción) ────────────────────────────────────
 if (IS_PROD) {
   const buildDir = path.join(__dirname, 'build');
   app.use(express.static(buildDir));
-  app.get('*', (req, res) => res.sendFile(path.join(buildDir, 'index.html')));
+  app.use((req, res) => res.sendFile(path.join(buildDir, 'index.html')));
 }
