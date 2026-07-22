@@ -29,7 +29,8 @@ module.exports = {
       env: {
         NODE_ENV:   'production',
         PORT:       3001,
-        MONGO_URI:  'mongodb://127.0.0.1:27017',   // ← MongoDB local en el servidor nube
+        // ⚠️  Rellena con la URI de Azure Cosmos DB (nunca subas credenciales a GitHub):
+        MONGO_URI:  'PEGA_AQUI_LA_URI_DE_AZURE_COSMOS_DB',
         DB_NAME:    'Oficina-REGENERA',
         TZ:         'Europe/Madrid',               // ← horas del histórico en hora española
         // ⚠️  CAMBIA ESTE VALOR antes de arrancar en producción:

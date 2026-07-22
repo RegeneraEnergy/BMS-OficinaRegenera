@@ -25,9 +25,11 @@ module.exports = {
       name:   'agent-ciat',
       script: 'agent-ciat.js',
       env: {
-        // ⚠️  CAMBIA IP_SERVIDOR_NUBE y CONTRASEÑA antes de arrancar:
-        MONGO_URI:    'mongodb://bms_user:CONTRASEÑA@IP_SERVIDOR_NUBE:27017',
-        DB_NAME:      'Oficina-REGENERA',
+        // ⚠️  Rellena con la URI de Azure Cosmos DB (nunca subas credenciales a GitHub):
+        MONGO_URI:       'PEGA_AQUI_LA_URI_DE_AZURE_COSMOS_DB',
+        // Buffer local 2 meses — deja vacío si no quieres copia local:
+        MONGO_URI_LOCAL: 'mongodb://127.0.0.1:27017',
+        DB_NAME:         'Oficina-REGENERA',
         CIAT_IP:      '169.254.226.19',
         CIAT_PORT:    '502',
         CIAT_UNIT_ID: '1',

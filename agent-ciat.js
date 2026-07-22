@@ -31,8 +31,11 @@ const ModbusRTU       = require('modbus-serial');
 const cron            = require('node-cron');
 
 // ── Configuración ─────────────────────────────────────────────────────────────
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://192.168.1.110:27017';
-const DB_NAME   = process.env.DB_NAME   || 'Oficina-REGENERA';
+// MONGO_URI       → Base de datos principal (Azure Cosmos DB en producción)
+// MONGO_URI_LOCAL → MongoDB local de la Pi (buffer 2 meses, opcional)
+const MONGO_URI       = process.env.MONGO_URI       || 'mongodb://127.0.0.1:27017';
+const MONGO_URI_LOCAL = process.env.MONGO_URI_LOCAL || null;   // null = no hay BD local separada
+const DB_NAME         = process.env.DB_NAME         || 'Oficina-REGENERA';
 const CIAT_IP   = process.env.CIAT_IP   || '169.254.226.19';
 const CIAT_PORT = parseInt(process.env.CIAT_PORT)    || 502;
 const CIAT_UNIT = parseInt(process.env.CIAT_UNIT_ID) || 1;
@@ -56,12 +59,23 @@ let estadoActual = {
 };
 
 // ── Conexión MongoDB ──────────────────────────────────────────────────────────
-let db;
+let db;        // principal (Azure Cosmos DB)
+let dbLocal;   // local Pi — solo para purgado de datos antiguos
 
 async function conectar() {
   const client = await MongoClient.connect(MONGO_URI, { serverSelectionTimeoutMS: 8000 });
   db = client.db(DB_NAME);
-  console.log(`[agent-ciat] MongoDB conectado: ${MONGO_URI}/${DB_NAME}`);
+  console.log(`[agent-ciat] MongoDB principal conectado: ${DB_NAME}`);
+
+  if (MONGO_URI_LOCAL && MONGO_URI_LOCAL !== MONGO_URI) {
+    try {
+      const localClient = await MongoClient.connect(MONGO_URI_LOCAL, { serverSelectionTimeoutMS: 5000 });
+      dbLocal = localClient.db(DB_NAME);
+      console.log('[agent-ciat] MongoDB local conectado (buffer Pi)');
+    } catch (e) {
+      console.warn('[agent-ciat] MongoDB local no disponible (continuando sin él):', e.message);
+    }
+  }
 }
 
 // ── Envío al equipo CIAT vía Modbus TCP ───────────────────────────────────────
@@ -204,6 +218,19 @@ function iniciarCron() {
   }, { timezone: 'Europe/Madrid' });
 
   console.log('[cron] Programador de horarios iniciado (Europe/Madrid)');
+
+  // Purgado diario del buffer local: elimina lecturas con más de 2 meses
+  cron.schedule('0 3 * * *', async () => {
+    if (!dbLocal) return;
+    const limite = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    try {
+      const r1 = await dbLocal.collection('readings').deleteMany({ ts: { $lt: limite } });
+      const r2 = await dbLocal.collection('readings_power').deleteMany({ ts: { $lt: limite } });
+      console.log(`[cron-purga] Buffer local purgado — readings: ${r1.deletedCount}, readings_power: ${r2.deletedCount}`);
+    } catch (e) {
+      console.error('[cron-purga]', e.message);
+    }
+  }, { timezone: 'Europe/Madrid' });
 }
 
 // ── Bucle principal ───────────────────────────────────────────────────────────
