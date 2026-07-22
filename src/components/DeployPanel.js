@@ -29,6 +29,7 @@ export default function DeployPanel({ onClose }) {
     fetchStatus();
     fetchRuns();
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
