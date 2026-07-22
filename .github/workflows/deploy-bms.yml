@@ -21,14 +21,14 @@ jobs:
         with:
           ref: ${{ github.event.client_payload.branch || github.event.inputs.branch || 'main' }}
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Instalar dependencias
-        run: npm ci
+        run: npm install --no-fund --no-audit
 
       - name: Compilar React
         run: npm run build
