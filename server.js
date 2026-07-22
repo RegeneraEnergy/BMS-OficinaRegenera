@@ -571,6 +571,34 @@ app.get('/api/admin/deploy/status', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/admin/deploy/runs', requireAuth, async (req, res) => {
+  const GH_TOKEN = process.env.GITHUB_TOKEN;
+  const GH_REPO  = process.env.GITHUB_REPO;
+  if (!GH_TOKEN || !GH_REPO) return res.json({ ok: false, runs: [] });
+  try {
+    const ghRes = await fetch(
+      `https://api.github.com/repos/${GH_REPO}/actions/runs?per_page=10`,
+      { headers: { Authorization: `Bearer ${GH_TOKEN}`, Accept: 'application/vnd.github.v3+json', 'User-Agent': 'BMS-OficinaRegenera' } }
+    );
+    if (!ghRes.ok) return res.json({ ok: false, runs: [] });
+    const { workflow_runs } = await ghRes.json();
+    res.json({
+      ok: true,
+      runs: workflow_runs.map(r => ({
+        id:         r.id,
+        status:     r.status,
+        conclusion: r.conclusion,
+        branch:     r.head_branch,
+        createdAt:  r.created_at,
+        url:        r.html_url,
+        runNumber:  r.run_number,
+      })),
+    });
+  } catch (err) {
+    res.json({ ok: false, runs: [], error: err.message });
+  }
+});
+
 app.post('/api/admin/deploy', requireAuth, async (req, res) => {
   const { branch = 'main' } = req.body;
   const GH_TOKEN = process.env.GITHUB_TOKEN;

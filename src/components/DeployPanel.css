@@ -267,31 +267,82 @@
 .dp-log-success { color: #86efac; }
 .dp-log-error   { color: #fca5a5; }
 
-/* Info */
-.dp-info-card { border-style: dashed; }
-
-.dp-info-text {
-  font-size: 0.78rem;
-  color: #64748b;
-  line-height: 1.6;
-  margin: 0 0 12px;
-}
-
-.dp-info-text code {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 3px;
-  padding: 1px 5px;
-  font-size: 0.72rem;
-  color: #1e293b;
-}
-
-.dp-docs-link {
-  font-size: 0.75rem;
-  color: #8cbd31;
-  text-decoration: none;
+/* Branch pill (replace select) */
+.dp-branch-pill {
+  flex: 1;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
   font-weight: 600;
-  transition: color 0.15s;
+  font-family: 'Courier New', monospace;
 }
 
-.dp-docs-link:hover { color: #5a8520; text-decoration: underline; }
+/* Runs history list */
+.dp-runs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dp-run-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dp-run-row:hover {
+  border-color: #8cbd31;
+  background: #f8fafc;
+}
+
+.dp-run-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dp-run-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.dp-rb-ok       { background: #dcfce7; color: #15803d; }
+.dp-rb-error    { background: #fee2e2; color: #b91c1c; }
+.dp-rb-progress { background: #fef9c3; color: #854d0e; }
+.dp-rb-queued   { background: #f1f5f9; color: #475569; }
+.dp-rb-cancel   { background: #f3f4f6; color: #6b7280; }
+
+.dp-run-branch {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+  font-family: 'Courier New', monospace;
+}
+
+.dp-run-num {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.dp-run-date {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
