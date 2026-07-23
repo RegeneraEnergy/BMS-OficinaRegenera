@@ -8,18 +8,27 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 const IS_PROD    = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
-const BMS_USER   = 'BMS-Regenera';
-const BMS_HASH   = '$2b$12$f5VV5Qy6v2459WMAi6ZTrutj8vwqa2DVm5OuDOOFKKRH08lvMdMeq';
+const USERS = {
+  'BMS-Regenera-admin': { hash: '$2b$12$c0kWO7MahiyPdpo7gFE2aO9MeljRfgGm9mdTaSH5CIQJP.6qz3Riu', role: 'admin' },
+  'BMS-OficinaRegenera':{ hash: '$2b$12$Zdm90BW9vJkU.z7Hw.4KHendmdWMG90Gstqm4o5TiPD8vfyAw4kje', role: 'viewer' },
+};
 
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization ?? '';
   if (!auth.startsWith('Bearer ')) return res.status(401).json({ error: 'No autorizado' });
   try {
-    jwt.verify(auth.slice(7), JWT_SECRET);
+    req.jwtPayload = jwt.verify(auth.slice(7), JWT_SECRET);
     next();
   } catch {
     res.status(401).json({ error: 'Token inválido o expirado' });
   }
+}
+
+function requireAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (req.jwtPayload?.role !== 'admin') return res.status(403).json({ error: 'Acceso restringido' });
+    next();
+  });
 }
 
 const MONGO_URIS = [
@@ -48,11 +57,12 @@ app.get('/api/health', (req, res) => {
 // ── Autenticación ─────────────────────────────────────────────────────────────
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body ?? {};
-  if (username !== BMS_USER || !await bcryptjs.compare(password ?? '', BMS_HASH)) {
+  const user = USERS[username];
+  if (!user || !await bcryptjs.compare(password ?? '', user.hash)) {
     return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
   }
-  const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '8h' });
-  res.json({ token });
+  const token = jwt.sign({ username, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
+  res.json({ token, role: user.role });
 });
 
 app.use('/api', (req, res, next) => {
@@ -620,7 +630,7 @@ app.delete('/api/schedule/:id', async (req, res) => {
 });
 
 // ── Panel de despliegue (admin) ──────────────────────────────────────────────
-app.get('/api/admin/deploy/status', requireAuth, async (req, res) => {
+app.get('/api/admin/deploy/status', requireAdmin, async (req, res) => {
   try {
     const last = await db.collection('deploy_log').findOne({}, { sort: { ts: -1 } });
     res.json({
@@ -633,7 +643,7 @@ app.get('/api/admin/deploy/status', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/admin/deploy/runs', requireAuth, async (req, res) => {
+app.get('/api/admin/deploy/runs', requireAdmin, async (req, res) => {
   const GH_TOKEN = process.env.GITHUB_TOKEN;
   const GH_REPO  = process.env.GITHUB_REPO;
   if (!GH_TOKEN || !GH_REPO) return res.json({ ok: false, runs: [] });
@@ -661,7 +671,7 @@ app.get('/api/admin/deploy/runs', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/deploy', requireAuth, async (req, res) => {
+app.post('/api/admin/deploy', requireAdmin, async (req, res) => {
   const { branch = 'main' } = req.body;
   const GH_TOKEN = process.env.GITHUB_TOKEN;
   const GH_REPO  = process.env.GITHUB_REPO; // e.g. "usuario/BMS-OficinaRegenera"

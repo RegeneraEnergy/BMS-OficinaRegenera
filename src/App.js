@@ -33,18 +33,30 @@ async function fetchLive() {
   };
 }
 
+function getTokenRole() {
+  try {
+    const token = localStorage.getItem('bms_token');
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.role ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem('bms_token'));
+  const [role,   setRole]   = useState(getTokenRole);
 
-  const handleLogin  = () => setAuthed(true);
-  const handleLogout = () => { localStorage.removeItem('bms_token'); setAuthed(false); };
+  const handleLogin  = () => { setAuthed(true); setRole(getTokenRole()); };
+  const handleLogout = () => { localStorage.removeItem('bms_token'); setAuthed(false); setRole(null); };
 
   if (!authed) return <Login onLogin={handleLogin} />;
 
-  return <Dashboard onLogout={handleLogout} />;
+  return <Dashboard onLogout={handleLogout} isAdmin={role === 'admin'} />;
 }
 
-function Dashboard({ onLogout }) {
+function Dashboard({ onLogout, isAdmin }) {
   const [liveData, setLiveData]     = useState(null);
   const [apiStatus, setApiStatus]   = useState('connecting');
   const [showDeploy, setShowDeploy] = useState(false);
@@ -73,7 +85,7 @@ function Dashboard({ onLogout }) {
         lastUpdate={liveData?.timestamp}
         apiStatus={apiStatus}
         onLogout={onLogout}
-        onDeploy={() => setShowDeploy(true)}
+        onDeploy={isAdmin ? () => setShowDeploy(true) : undefined}
       />
       {showDeploy && <DeployPanel onClose={() => setShowDeploy(false)} />}
       <main className="main-content">
