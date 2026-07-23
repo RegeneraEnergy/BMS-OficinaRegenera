@@ -137,8 +137,8 @@ app.get('/api/live', async (req, res) => {
     const col = db.collection('readings');
 
     const [deye, ciat, power] = await Promise.all([
-      col.findOne({ 'metadata.deviceId': /deye/i }, { sort: { ts: -1 } }),
-      col.findOne({ 'metadata.deviceId': /ciat/i }, { sort: { ts: -1 } }),
+      col.findOne({ 'metadata.deviceId': DEYE_ID }, { sort: { ts: -1 } }),
+      col.findOne({ 'metadata.deviceId': CIAT_ID }, { sort: { ts: -1 } }),
       db.collection('reading_power').findOne({}, { sort: { ts: -1 } }),
     ]);
 
@@ -275,7 +275,7 @@ app.get('/api/fields', async (req, res) => {
     const col = db.collection(colName);
 
     const filter = {};
-    if (device) filter['metadata.deviceId'] = new RegExp(device, 'i');
+    if (device) filter['metadata.deviceId'] = { deye: DEYE_ID, ciat: CIAT_ID }[device.toLowerCase()] ?? new RegExp(device, 'i');
 
     const samples = await col.find(filter).sort({ ts: -1 }).limit(30).toArray();
 
@@ -357,7 +357,7 @@ app.get('/api/data', async (req, res) => {
     const col = db.collection(colName);
 
     const filter = { ts: { $gte: since, $lte: until } };
-    if (device) filter['metadata.deviceId'] = new RegExp(device, 'i');
+    if (device) filter['metadata.deviceId'] = { deye: DEYE_ID, ciat: CIAT_ID }[device.toLowerCase()] ?? new RegExp(device, 'i');
 
     const docs = await col.find(filter).sort({ ts: 1 }).toArray();
     console.log(`/api/data source=${source} device=${device ?? '-'} granularity=${granularity} → ${docs.length} docs`);
@@ -387,7 +387,7 @@ app.get('/api/totals', async (req, res) => {
     const col = db.collection('readings');
 
     const [deyeDocs, powerDocs1, powerDocs2] = await Promise.all([
-      col.find({ 'metadata.deviceId': /deye/i, ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
+      col.find({ 'metadata.deviceId': DEYE_ID, ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
       db.collection('reading_power').find({ ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
       db.collection('readings_power').find({ ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
     ]);
