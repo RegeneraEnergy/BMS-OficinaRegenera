@@ -53,10 +53,10 @@ export default function App() {
 
   if (!authed) return <Login onLogin={handleLogin} />;
 
-  return <Dashboard onLogout={handleLogout} isAdmin={role === 'admin'} />;
+  return <Dashboard onLogout={handleLogout} isAdmin={role === 'admin'} canControl={role === 'admin' || role === 'manager'} />;
 }
 
-function Dashboard({ onLogout, isAdmin }) {
+function Dashboard({ onLogout, isAdmin, canControl }) {
   const [liveData, setLiveData]     = useState(null);
   const [apiStatus, setApiStatus]   = useState('connecting');
   const [showDeploy, setShowDeploy] = useState(false);
@@ -91,7 +91,7 @@ function Dashboard({ onLogout, isAdmin }) {
       <main className="main-content">
         <StatsBar data={liveData} />
         <EnergyFlow data={liveData} />
-        <HistoricalData />
+        <HistoricalData canControl={canControl} />
       </main>
       <footer className="footer">
         <span>Regenera Levante © {new Date().getFullYear()}</span>

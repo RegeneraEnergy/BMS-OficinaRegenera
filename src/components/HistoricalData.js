@@ -168,7 +168,7 @@ function downloadCSV(data, selectedKeys, filename) {
 /* ══════════════════════════════════════════════════════════════════════════════
    Componente principal
 ══════════════════════════════════════════════════════════════════════════════ */
-export default function HistoricalData() {
+export default function HistoricalData({ canControl = true }) {
   const now = new Date();
   const defaultFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -439,12 +439,16 @@ export default function HistoricalData() {
           </span>
         </div>
         <div className="historical-actions">
-          <button className="hvac-control-btn" onClick={() => setShowHVACControl(true)}>
-            ❄️ Control CIAT
-          </button>
-          <button className="schedule-control-btn" onClick={() => setShowScheduleManager(true)}>
-            🕐 Programar
-          </button>
+          {canControl && (
+            <button className="hvac-control-btn" onClick={() => setShowHVACControl(true)}>
+              ❄️ Control CIAT
+            </button>
+          )}
+          {canControl && (
+            <button className="schedule-control-btn" onClick={() => setShowScheduleManager(true)}>
+              🕐 Programar
+            </button>
+          )}
           <div className="chart-type-selector">
             {['area', 'line', 'bar'].map(type => (
               <button key={type} className={`chart-type-btn ${chartType === type ? 'active' : ''}`}

@@ -9,8 +9,9 @@ const { MongoClient, ObjectId } = require('mongodb');
 const IS_PROD    = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const USERS = {
-  'BMS-Regenera-admin': { hash: '$2b$12$c0kWO7MahiyPdpo7gFE2aO9MeljRfgGm9mdTaSH5CIQJP.6qz3Riu', role: 'admin' },
-  'BMS-OficinaRegenera':{ hash: '$2b$12$Zdm90BW9vJkU.z7Hw.4KHendmdWMG90Gstqm4o5TiPD8vfyAw4kje', role: 'viewer' },
+  'BMS-Regenera-admin':        { hash: '$2b$12$c0kWO7MahiyPdpo7gFE2aO9MeljRfgGm9mdTaSH5CIQJP.6qz3Riu', role: 'admin'   },
+  'BMS-OficinaRegenera-manager':{ hash: '$2b$12$PCvQsn4a95IbLZlPI5E4oOuNHMJPsjevj5ZAaKDy8IP3ajdSM3vEK', role: 'manager' },
+  'BMS-OficinaRegenera':        { hash: '$2b$12$Zdm90BW9vJkU.z7Hw.4KHendmdWMG90Gstqm4o5TiPD8vfyAw4kje', role: 'viewer'  },
 };
 
 function requireAuth(req, res, next) {
