@@ -6,8 +6,9 @@ const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error,    setError]    = useState(null);
-  const [loading,  setLoading]  = useState(false);
+  const [error,       setError]       = useState(null);
+  const [loading,     setLoading]     = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -54,14 +55,25 @@ export default function Login({ onLogin }) {
           </div>
           <div className="login-field">
             <label className="login-label">Contraseña</label>
-            <input
-              className="login-input"
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              autoComplete="current-password"
-              disabled={loading}
-            />
+            <div className="login-password-wrap">
+              <input
+                className="login-input"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete="current-password"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="login-eye-btn"
+                onClick={() => setShowPassword(v => !v)}
+                tabIndex={-1}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
           {error && <div className="login-error">{error}</div>}
           <button className="login-btn" type="submit" disabled={loading || !username || !password}>
