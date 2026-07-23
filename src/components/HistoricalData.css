@@ -209,6 +209,17 @@
 .filter-apply-btn:hover:not(:disabled) { background: #1d4ed8; }
 .filter-apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.range-error-msg {
+  grid-column: 1 / -1;
+  color: #f87171;
+  font-size: 12px;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(248, 113, 113, 0.1);
+  border-left: 3px solid #f87171;
+  border-radius: 3px;
+}
+
 .filter-preset-btn {
   padding: 6px 14px;
   background: #ffffff;

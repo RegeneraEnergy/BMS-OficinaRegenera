@@ -95,6 +95,11 @@ app.listen(PORT, () => console.log(`[API] Escuchando en http://localhost:${PORT}
     db = await connectMongo();
     dbReady = true;
     console.log(`[API] BD lista: ${connectedUri}/${DB_NAME}`);
+    // Índices para acelerar queries de /api/data
+    for (const col of ['readings', 'readings_power']) {
+      db.collection(col).createIndex({ ts: 1 }).catch(() => {});
+      db.collection(col).createIndex({ 'metadata.deviceId': 1, ts: 1 }).catch(() => {});
+    }
   } catch (err) {
     console.error('[FATAL] MongoDB no disponible:', err.message);
     // No exit(1): el servidor HTTP sigue vivo para health checks.
@@ -359,9 +364,66 @@ app.get('/api/data', async (req, res) => {
     const filter = { ts: { $gte: since, $lte: until } };
     if (device) filter['metadata.deviceId'] = { deye: DEYE_ID, ciat: CIAT_ID }[device.toLowerCase()] ?? new RegExp(device, 'i');
 
-    const docs = await col.find(filter).sort({ ts: 1 }).toArray();
-    console.log(`/api/data source=${source} device=${device ?? '-'} granularity=${granularity} → ${docs.length} docs`);
+    let docs;
+    const ms = GRAN_MS[granularity];
 
+    if (ms) {
+      // Bucketing en MongoDB: un doc por cubo temporal → 10-100× menos datos transferidos
+      const epoch = new Date(0);
+      const pipeline = [
+        { $match: filter },
+        { $sort: { ts: 1 } },
+        { $group: {
+          _id: { $subtract: [
+            { $subtract: ['$ts', epoch] },
+            { $mod: [{ $subtract: ['$ts', epoch] }, ms] },
+          ]},
+          doc: { $first: '$$ROOT' },
+        }},
+        { $replaceRoot: { newRoot: '$doc' } },
+        { $sort: { ts: 1 } },
+      ];
+      docs = await col.aggregate(pipeline, { allowDiskUse: true }).toArray();
+    } else if (granularity === '1d' || granularity === '1mo' || granularity === '1y') {
+      const fmt = granularity === '1y' ? '%Y' : granularity === '1mo' ? '%Y-%m' : '%Y-%m-%d';
+      const pipeline = [
+        { $match: filter },
+        { $sort: { ts: 1 } },
+        { $group: {
+          _id: { $dateToString: { format: fmt, date: '$ts' } },
+          doc: { $first: '$$ROOT' },
+        }},
+        { $replaceRoot: { newRoot: '$doc' } },
+        { $sort: { ts: 1 } },
+      ];
+      docs = await col.aggregate(pipeline, { allowDiskUse: true }).toArray();
+    } else if (granularity === 'raw') {
+      const rangeMs  = until.getTime() - since.getTime();
+      const sampleMs = Math.floor(rangeMs / 2_000);
+      if (sampleMs >= 60_000) {
+        const epoch = new Date(0);
+        const pipeline = [
+          { $match: filter },
+          { $sort: { ts: 1 } },
+          { $group: {
+            _id: { $subtract: [
+              { $subtract: ['$ts', epoch] },
+              { $mod: [{ $subtract: ['$ts', epoch] }, sampleMs] },
+            ]},
+            doc: { $first: '$$ROOT' },
+          }},
+          { $replaceRoot: { newRoot: '$doc' } },
+          { $sort: { ts: 1 } },
+        ];
+        docs = await col.aggregate(pipeline, { allowDiskUse: true }).toArray();
+      } else {
+        docs = await col.find(filter).sort({ ts: 1 }).limit(2_000).toArray();
+      }
+    } else {
+      docs = await col.find(filter).sort({ ts: 1 }).limit(50_000).toArray();
+    }
+
+    console.log(`/api/data source=${source} device=${device ?? '-'} granularity=${granularity} → ${docs.length} docs`);
     res.json(agregateData(docs, granularity));
   } catch (err) {
     console.error('/api/data error:', err.message);

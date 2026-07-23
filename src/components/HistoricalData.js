@@ -32,6 +32,36 @@ const GRANULARITIES = [
   { id: '1y',  label: 'Anual' },
 ];
 
+const MAX_RANGE = {
+  raw:  { ms: 7   * 86_400_000, label: '7 días' },
+  '5m': { ms: 60  * 86_400_000, label: '60 días' },
+  '10m':{ ms: 60  * 86_400_000, label: '60 días' },
+  '15m':{ ms: 90  * 86_400_000, label: '90 días' },
+  '20m':{ ms: 90  * 86_400_000, label: '90 días' },
+  '1h': { ms: 365 * 86_400_000, label: '1 año' },
+};
+
+// Inserta un punto null entre dos muestras consecutivas cuando el hueco
+// supera 3 veces el intervalo típico, para que Recharts muestre el corte.
+function insertGapNulls(data) {
+  if (data.length < 3) return data;
+  const ts = data.slice(0, 20).map(d => new Date(d.datetime).getTime());
+  const diffs = ts.slice(1).map((t, i) => t - ts[i]).filter(d => d > 0).sort((a, b) => a - b);
+  if (diffs.length === 0) return data;
+  const median = diffs[Math.floor(diffs.length / 2)];
+  const threshold = median * 3;
+  const result = [data[0]];
+  for (let i = 1; i < data.length; i++) {
+    const prev = new Date(data[i - 1].datetime).getTime();
+    const curr = new Date(data[i].datetime).getTime();
+    if (curr - prev > threshold) {
+      result.push({ datetime: new Date((prev + curr) / 2).toISOString() });
+    }
+    result.push(data[i]);
+  }
+  return result;
+}
+
 function smartGranularity(from, to) {
   const ms = to - from;
   const h = 3_600_000, d = 86_400_000;
@@ -255,7 +285,16 @@ export default function HistoricalData() {
   }, [appliedFrom, appliedTo, activeTab, climaSubId, granularity]); // eslint-disable-line
 
   /* ── Filtro de fechas ───────────────────────────────────────────────────── */
+  const rangeError = useMemo(() => {
+    const limit = MAX_RANGE[granularity];
+    if (!limit) return null;
+    const ms = new Date(draftTo).getTime() - new Date(draftFrom).getTime();
+    if (ms > limit.ms) return `La granularidad "${GRANULARITIES.find(g => g.id === granularity)?.label}" admite un máximo de ${limit.label} por consulta.`;
+    return null;
+  }, [draftFrom, draftTo, granularity]);
+
   const applyFilter = () => {
+    if (rangeError) return;
     setAppliedFrom(new Date(draftFrom));
     setAppliedTo(new Date(draftTo));
     setPage(0);
@@ -315,9 +354,12 @@ export default function HistoricalData() {
 
   // El servidor ya agregó: solo limitamos el nº de puntos en el gráfico
   const displayData  = useMemo(() => {
-    if (histData.length <= 500) return histData;
-    const step = Math.ceil(histData.length / 500);
-    return histData.filter((_, i) => i % step === 0);
+    let data = histData;
+    if (data.length > 500) {
+      const step = Math.ceil(data.length / 500);
+      data = data.filter((_, i) => i % step === 0);
+    }
+    return insertGapNulls(data);
   }, [histData]);
 
   const pagedData  = histData.slice(page * pageSize, (page + 1) * pageSize);
@@ -352,7 +394,7 @@ export default function HistoricalData() {
       <LineChart {...common}>{grid}{xAxis}{yAxis}{tooltip}{legend}
         {activeMetrics.map(m => (
           <Line key={m.key} type="monotone" dataKey={m.key} name={m.name}
-            stroke={m.color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+            stroke={m.color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls={false} />
         ))}
       </LineChart>
     );
@@ -371,7 +413,7 @@ export default function HistoricalData() {
         {activeMetrics.map(m => (
           <Area key={m.key} type="monotone" dataKey={m.key} name={m.name}
             stroke={m.color} strokeWidth={2} fill={`url(#grad-${m.key})`}
-            dot={false} activeDot={{ r: 4 }} />
+            dot={false} activeDot={{ r: 4 }} connectNulls={false} />
         ))}
       </AreaChart>
     );
@@ -447,9 +489,12 @@ export default function HistoricalData() {
           ))}
         </div>
         <div className="date-filter-actions">
-          <button className="filter-apply-btn" onClick={applyFilter} disabled={loading}>Aplicar</button>
+          <button className="filter-apply-btn" onClick={applyFilter} disabled={loading || !!rangeError}>Aplicar</button>
           <button className="filter-preset-btn" onClick={applyLast24h} disabled={loading}>Últimas 24h</button>
         </div>
+        {rangeError && (
+          <div className="range-error-msg">⚠ {rangeError}</div>
+        )}
       </div>
 
       {/* Tabs principales */}
