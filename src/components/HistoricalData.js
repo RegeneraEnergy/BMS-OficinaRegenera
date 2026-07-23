@@ -193,7 +193,8 @@ export default function HistoricalData() {
   const [draftTo,   setDraftTo]       = useState(toLocalInput(now));
   const [appliedFrom, setAppliedFrom] = useState(defaultFrom);
   const [appliedTo,   setAppliedTo]   = useState(now);
-  const [granularity, setGranularity] = useState(() => smartGranularity(defaultFrom, now));
+  const [draftGranularity, setDraftGranularity] = useState(() => smartGranularity(defaultFrom, now));
+  const [granularity,      setGranularity]      = useState(() => smartGranularity(defaultFrom, now));
 
   const [showHVACControl,   setShowHVACControl]   = useState(false);
   const [showScheduleManager, setShowScheduleManager] = useState(false);
@@ -286,17 +287,18 @@ export default function HistoricalData() {
 
   /* ── Filtro de fechas ───────────────────────────────────────────────────── */
   const rangeError = useMemo(() => {
-    const limit = MAX_RANGE[granularity];
+    const limit = MAX_RANGE[draftGranularity];
     if (!limit) return null;
     const ms = new Date(draftTo).getTime() - new Date(draftFrom).getTime();
-    if (ms > limit.ms) return `La granularidad "${GRANULARITIES.find(g => g.id === granularity)?.label}" admite un máximo de ${limit.label} por consulta.`;
+    if (ms > limit.ms) return `La granularidad "${GRANULARITIES.find(g => g.id === draftGranularity)?.label}" admite un máximo de ${limit.label} por consulta.`;
     return null;
-  }, [draftFrom, draftTo, granularity]);
+  }, [draftFrom, draftTo, draftGranularity]);
 
   const applyFilter = () => {
     if (rangeError) return;
     setAppliedFrom(new Date(draftFrom));
     setAppliedTo(new Date(draftTo));
+    setGranularity(draftGranularity);
     setPage(0);
   };
 
@@ -307,7 +309,9 @@ export default function HistoricalData() {
     setDraftTo(toLocalInput(t));
     setAppliedFrom(f);
     setAppliedTo(t);
-    setGranularity(smartGranularity(f, t));
+    const sg = smartGranularity(f, t);
+    setDraftGranularity(sg);
+    setGranularity(sg);
     setPage(0);
   };
 
@@ -482,8 +486,8 @@ export default function HistoricalData() {
           {GRANULARITIES.map(g => (
             <button
               key={g.id}
-              className={`granularity-btn ${granularity === g.id ? 'active' : ''}`}
-              onClick={() => setGranularity(g.id)}
+              className={`granularity-btn ${draftGranularity === g.id ? 'active' : ''}`}
+              onClick={() => setDraftGranularity(g.id)}
               disabled={loading}
             >{g.label}</button>
           ))}
