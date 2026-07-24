@@ -194,9 +194,15 @@ def main():
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=8000)
     col    = client[DB_NAME][COL_NAME]
 
-    # Índices para acelerar upserts y futuras consultas
-    col.create_index([("ts", 1)])
-    col.create_index([("metadata.deviceId", 1), ("ts", 1)])
+    # Intentar crear índices; ignorar si ya existen con opciones distintas
+    try:
+        col.create_index([("ts", 1)])
+    except Exception:
+        pass
+    try:
+        col.create_index([("metadata.deviceId", 1), ("ts", 1)], unique=True)
+    except Exception:
+        pass
 
     token      = get_token()
     token_time = time.time()
