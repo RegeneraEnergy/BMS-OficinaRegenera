@@ -50,16 +50,6 @@ export default function StatsBar({ data }) {
     : 0;
 
   const kwhFmt = (v) => v != null ? `${v.toFixed(1)} kWh` : '—';
-  const batFmt = (v) => v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)} kWh` : '—';
-  const pctFmt = (gen, cons) =>
-    gen != null && cons != null && cons > 0
-      ? `${Math.min(100, Math.round(gen / cons * 100))}%`
-      : '—';
-
-  const ssPct = (obj) =>
-    obj?.consumoOficina > 0
-      ? Math.round((obj?.generacion ?? 0) / obj.consumoOficina * 100)
-      : null;
 
   const stats = [
     {
@@ -99,18 +89,12 @@ export default function StatsBar({ data }) {
       value: `${data.batteryLevel.toFixed(0)}%`,
       unit: data.batteryFlow > 0 ? '↑ cargando' : '↓ descargando', icon: '🔋',
       color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe',
-      daily: batFmt(daily?.batteryFlow),      weekly: batFmt(weekly?.batteryFlow),
-      curDaily: null, prevDaily: null, curWeekly: null, prevWeekly: null,
-      upIsGood: null,
+      showTotals: false,
     },
     {
       label: 'Autosuficiencia', value: `${selfSufficiency}%`, unit: 'solar', icon: '🌿',
       color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0',
-      daily: pctFmt(daily?.generacion, daily?.consumoOficina),
-      weekly: pctFmt(weekly?.generacion, weekly?.consumoOficina),
-      curDaily:   ssPct(daily),               prevDaily:   ssPct(daily?.prev),
-      curWeekly:  ssPct(weekly),              prevWeekly:  ssPct(weekly?.prev),
-      upIsGood: true,
+      showTotals: false,
     },
   ];
 
@@ -129,19 +113,21 @@ export default function StatsBar({ data }) {
               <span className="stat-unit">{stat.unit}</span>
             </div>
             <div className="stat-label">{stat.label}</div>
-            <div className="stat-totals">
-              <span className="stat-total-item">
-                <span className="stat-total-period">Hoy</span>
-                {stat.daily}
-                <TrendBadge cur={stat.curDaily} prev={stat.prevDaily} upIsGood={stat.upIsGood} />
-              </span>
-              <span className="stat-total-sep">·</span>
-              <span className="stat-total-item">
-                <span className="stat-total-period">Sem</span>
-                {stat.weekly}
-                <TrendBadge cur={stat.curWeekly} prev={stat.prevWeekly} upIsGood={stat.upIsGood} />
-              </span>
-            </div>
+            {stat.showTotals !== false && (
+              <div className="stat-totals">
+                <span className="stat-total-item">
+                  <span className="stat-total-period">Hoy</span>
+                  {stat.daily}
+                  <TrendBadge cur={stat.curDaily} prev={stat.prevDaily} upIsGood={stat.upIsGood} />
+                </span>
+                <span className="stat-total-sep">·</span>
+                <span className="stat-total-item">
+                  <span className="stat-total-period">Sem</span>
+                  {stat.weekly}
+                  <TrendBadge cur={stat.curWeekly} prev={stat.prevWeekly} upIsGood={stat.upIsGood} />
+                </span>
+              </div>
+            )}
           </div>
         </div>
       ))}

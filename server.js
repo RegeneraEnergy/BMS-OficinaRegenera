@@ -492,7 +492,7 @@ async function computeTotals(since, until) {
 
   for (const doc of deyeMap.values()) {
     const dm = doc.metrics ?? {};
-    pvGen += (dm.inverter?.totalW ?? 0) / 1000 * H;
+    pvGen += (dm.pv?.totalSolarW ?? dm.inverter?.totalW ?? 0) / 1000 * H;
     grid  += (dm.grid?.totalW    ?? 0) / 1000 * H;
     bat   += -(dm.battery?.powerW ?? 0) / 1000 * H;
   }
@@ -532,9 +532,12 @@ app.get('/api/totals', async (req, res) => {
       prevSince = new Date(since.getTime() - 86_400_000);
     }
 
+    const elapsed   = now.getTime() - since.getTime();        // tiempo transcurrido en el período actual
+    const prevUntil = new Date(prevSince.getTime() + elapsed); // misma hora relativa en el período anterior
+
     const [current, prev] = await Promise.all([
       computeTotals(since, now),
-      computeTotals(prevSince, since),
+      computeTotals(prevSince, prevUntil),
     ]);
 
     console.log(`[totals] period=${period} since=${since.toISOString()} cur.consumo=${current.consumoOficina} prev.consumo=${prev.consumoOficina}`);
