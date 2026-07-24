@@ -46,6 +46,28 @@ const DEYE_ID  = 'dev_deye_2211137014';
 const CIAT_ID  = 'dev_clima_ciat';
 const BUCKET_MS = 10 * 60 * 1000;
 
+// Construye un filtro de rango temporal que funciona tanto si ts está
+// almacenado como Date (ISODate) como si está almacenado como string ISO.
+function tsRange(since, until) {
+  const sinceIso = since.toISOString();
+  const untilIso = until.toISOString();
+  return {
+    $or: [
+      { ts: { $gte: since,    $lte: until    } },  // Date
+      { ts: { $gte: sinceIso, $lte: untilIso } },  // string ISO
+    ],
+  };
+}
+
+// Expresión de agregación que convierte $ts (Date o string) a milisegundos UTC.
+const EPOCH = new Date(0);
+function tsMsExpr() {
+  return { $subtract: [
+    { $convert: { input: '$ts', to: 'date', onError: EPOCH, onNull: EPOCH } },
+    EPOCH,
+  ]};
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -123,21 +145,25 @@ app.get('/api/debug', async (req, res) => {
   try {
     const col      = db.collection('readings');
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const tr24h    = tsRange(since24h, new Date());
 
-    const [total, last24h, latest] = await Promise.all([
+    const [total, last24h, last24hDeye, latest] = await Promise.all([
       col.countDocuments(),
-      col.countDocuments({ ts: { $gte: since24h } }),
-      col.find({}).sort({ ts: -1 }).limit(3).toArray(),
+      col.countDocuments(tr24h),
+      col.countDocuments({ 'metadata.deviceId': DEYE_ID, ...tr24h }),
+      col.find({}).sort({ ts: -1 }).limit(5).toArray(),
     ]);
 
     res.json({
       connectedUri,
-      database:  DB_NAME,
-      totalDocs: total,
-      docs24h:   last24h,
+      database:   DB_NAME,
+      totalDocs:  total,
+      docs24h:    last24h,
+      deyeDocs24h: last24hDeye,
       latestDocs: latest.map(d => ({
-        ts:        d.ts,
-        deviceId:  d.metadata?.deviceId,
+        ts:       d.ts,
+        tsType:   typeof d.ts === 'object' ? (d.ts instanceof Date ? 'Date' : 'object') : typeof d.ts,
+        deviceId: d.metadata?.deviceId,
         climaKeys: d.metrics?.clima ? Object.keys(d.metrics.clima) : null,
         deyeKeys:  d.metrics?.pv    ? Object.keys(d.metrics)       : null,
       })),
@@ -198,7 +224,7 @@ app.get('/api/historical', async (req, res) => {
     const until = req.query.to   ? new Date(req.query.to)   : new Date();
 
     const docs = await col
-      .find({ ts: { $gte: since, $lte: until } })
+      .find(tsRange(since, until))
       .sort({ ts: 1 })
       .toArray();
 
@@ -372,23 +398,22 @@ app.get('/api/data', async (req, res) => {
     const colName = source === 'power' ? 'readings_power' : 'readings';
     const col = db.collection(colName);
 
-    const filter = { ts: { $gte: since, $lte: until } };
-    if (device) filter['metadata.deviceId'] = { deye: DEYE_ID, ciat: CIAT_ID }[device.toLowerCase()] ?? new RegExp(device, 'i');
+    const deviceVal = device ? ({ deye: DEYE_ID, ciat: CIAT_ID }[device.toLowerCase()] ?? new RegExp(device, 'i')) : null;
+    const filter = deviceVal
+      ? { 'metadata.deviceId': deviceVal, ...tsRange(since, until) }
+      : tsRange(since, until);
 
     let docs;
     const ms = GRAN_MS[granularity];
 
     if (ms) {
       // Bucketing en MongoDB: un doc por cubo temporal → 10-100× menos datos transferidos
-      const epoch = new Date(0);
+      const tsMs = tsMsExpr();
       const pipeline = [
         { $match: filter },
         { $sort: { ts: 1 } },
         { $group: {
-          _id: { $subtract: [
-            { $subtract: ['$ts', epoch] },
-            { $mod: [{ $subtract: ['$ts', epoch] }, ms] },
-          ]},
+          _id: { $subtract: [tsMs, { $mod: [tsMs, ms] }] },
           doc: { $first: '$$ROOT' },
         }},
         { $replaceRoot: { newRoot: '$doc' } },
@@ -397,11 +422,12 @@ app.get('/api/data', async (req, res) => {
       docs = await col.aggregate(pipeline, { allowDiskUse: true }).toArray();
     } else if (granularity === '1d' || granularity === '1mo' || granularity === '1y') {
       const fmt = granularity === '1y' ? '%Y' : granularity === '1mo' ? '%Y-%m' : '%Y-%m-%d';
+      const tsDate = { $convert: { input: '$ts', to: 'date', onError: new Date(0), onNull: new Date(0) } };
       const pipeline = [
         { $match: filter },
         { $sort: { ts: 1 } },
         { $group: {
-          _id: { $dateToString: { format: fmt, date: '$ts' } },
+          _id: { $dateToString: { format: fmt, date: tsDate } },
           doc: { $first: '$$ROOT' },
         }},
         { $replaceRoot: { newRoot: '$doc' } },
@@ -412,15 +438,12 @@ app.get('/api/data', async (req, res) => {
       const rangeMs  = until.getTime() - since.getTime();
       const sampleMs = Math.floor(rangeMs / 2_000);
       if (sampleMs >= 60_000) {
-        const epoch = new Date(0);
+        const tsMs = tsMsExpr();
         const pipeline = [
           { $match: filter },
           { $sort: { ts: 1 } },
           { $group: {
-            _id: { $subtract: [
-              { $subtract: ['$ts', epoch] },
-              { $mod: [{ $subtract: ['$ts', epoch] }, sampleMs] },
-            ]},
+            _id: { $subtract: [tsMs, { $mod: [tsMs, sampleMs] }] },
             doc: { $first: '$$ROOT' },
           }},
           { $replaceRoot: { newRoot: '$doc' } },
@@ -467,11 +490,11 @@ function madridStartOfWeek(date = new Date()) {
 
 // ── Cálculo de totales para un intervalo ──────────────────────────────────────
 async function computeTotals(since, until) {
-  const tsFilter = { $gte: since, $lte: until };
+  const tr = tsRange(since, until);
   const [deyeDocs, powerDocs1, powerDocs2] = await Promise.all([
-    db.collection('readings').find({ 'metadata.deviceId': DEYE_ID, ts: tsFilter }).sort({ ts: 1 }).toArray(),
-    db.collection('reading_power').find({ ts: tsFilter }).sort({ ts: 1 }).toArray(),
-    db.collection('readings_power').find({ ts: tsFilter }).sort({ ts: 1 }).toArray(),
+    db.collection('readings').find({ 'metadata.deviceId': DEYE_ID, ...tr }).sort({ ts: 1 }).toArray(),
+    db.collection('reading_power').find(tr).sort({ ts: 1 }).toArray(),
+    db.collection('readings_power').find(tr).sort({ ts: 1 }).toArray(),
   ]);
 
   const powerDocs = powerDocs1.length >= powerDocs2.length ? powerDocs1 : powerDocs2;
