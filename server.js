@@ -442,70 +442,103 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
+// ── Ayudantes de zona horaria (Europe/Madrid) ─────────────────────────────────
+// Devuelve el instante UTC que corresponde a la medianoche del día
+// en que cae `date` según la hora de Madrid.
+function madridMidnight(date = new Date()) {
+  const localStr = date.toLocaleString('sv', { timeZone: 'Europe/Madrid' }); // "YYYY-MM-DD HH:MM:SS"
+  const localMs  = new Date(localStr.replace(' ', 'T') + 'Z').getTime();    // Madrid local tratado como UTC
+  const offsetMs = date.getTime() - localMs;                                  // p.ej. -7200000 en verano (UTC+2)
+  const [datePart] = localStr.split(' ');
+  const [y, m, d]  = datePart.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d) + offsetMs);
+}
+
+// Devuelve el lunes (00:00 Madrid) de la semana en que cae `date`.
+function madridStartOfWeek(date = new Date()) {
+  const midnight = madridMidnight(date);
+  const dowStr   = new Intl.DateTimeFormat('en', {
+    timeZone: 'Europe/Madrid', weekday: 'short',
+  }).format(midnight);
+  const dow             = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(dowStr);
+  const daysSinceMonday = dow === 0 ? 6 : dow - 1;
+  return new Date(midnight.getTime() - daysSinceMonday * 86_400_000);
+}
+
+// ── Cálculo de totales para un intervalo ──────────────────────────────────────
+async function computeTotals(since, until) {
+  const tsFilter = { $gte: since, $lte: until };
+  const [deyeDocs, powerDocs1, powerDocs2] = await Promise.all([
+    db.collection('readings').find({ 'metadata.deviceId': DEYE_ID, ts: tsFilter }).sort({ ts: 1 }).toArray(),
+    db.collection('reading_power').find({ ts: tsFilter }).sort({ ts: 1 }).toArray(),
+    db.collection('readings_power').find({ ts: tsFilter }).sort({ ts: 1 }).toArray(),
+  ]);
+
+  const powerDocs = powerDocs1.length >= powerDocs2.length ? powerDocs1 : powerDocs2;
+
+  const deyeMap  = new Map();
+  const powerMap = new Map();
+  for (const doc of deyeDocs) {
+    const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
+    deyeMap.set(key, doc);
+  }
+  for (const doc of powerDocs) {
+    const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
+    powerMap.set(key, doc);
+  }
+
+  const H = 10 / 60;
+  let pvGen = 0, grid = 0, bat = 0, clima = 0;
+
+  for (const doc of deyeMap.values()) {
+    const dm = doc.metrics ?? {};
+    pvGen += (dm.inverter?.totalW ?? 0) / 1000 * H;
+    grid  += (dm.grid?.totalW    ?? 0) / 1000 * H;
+    bat   += -(dm.battery?.powerW ?? 0) / 1000 * H;
+  }
+  for (const doc of powerMap.values()) {
+    clima += (doc.metrics?.clima?.potenciaTotalkW ?? 0) * H;
+  }
+
+  const generacion     = pvGen + Math.max(0, -bat);
+  const consumoOficina = pvGen + grid + bat;
+
+  return {
+    pvGeneration:     +pvGen.toFixed(2),
+    gridDemand:       +grid.toFixed(2),
+    batteryFlow:      +bat.toFixed(2),
+    climaConsumption: +clima.toFixed(2),
+    generacion:       +generacion.toFixed(2),
+    consumoOficina:   +consumoOficina.toFixed(2),
+  };
+}
+
 // ── /api/totals ──────────────────────────────────────────────────────────────
-// Totales energéticos (kWh) para hoy (desde medianoche) o los últimos 7 días.
-// ?period=day|week
+// ?period=day   → desde las 00:00 de hoy (hora Madrid) hasta ahora
+//               + mismo intervalo del día anterior (para comparativa)
+// ?period=week  → desde el lunes 00:00 de esta semana (hora Madrid) hasta ahora
+//               + misma semana anterior (para comparativa)
 app.get('/api/totals', async (req, res) => {
   try {
     const { period = 'day' } = req.query;
     const now = new Date();
-    let since;
+
+    let since, prevSince;
     if (period === 'week') {
-      since = new Date(now - 7 * 24 * 3600 * 1000);
+      since     = madridStartOfWeek(now);
+      prevSince = new Date(since.getTime() - 7 * 86_400_000);
     } else {
-      since = new Date(now);
-      since.setHours(0, 0, 0, 0);
+      since     = madridMidnight(now);
+      prevSince = new Date(since.getTime() - 86_400_000);
     }
 
-    const col = db.collection('readings');
-
-    const [deyeDocs, powerDocs1, powerDocs2] = await Promise.all([
-      col.find({ 'metadata.deviceId': DEYE_ID, ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
-      db.collection('reading_power').find({ ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
-      db.collection('readings_power').find({ ts: { $gte: since } }).sort({ ts: 1 }).toArray(),
+    const [current, prev] = await Promise.all([
+      computeTotals(since, now),
+      computeTotals(prevSince, since),
     ]);
 
-    const powerDocs = powerDocs1.length >= powerDocs2.length ? powerDocs1 : powerDocs2;
-    console.log(`[totals] period=${period} deye=${deyeDocs.length} reading_power=${powerDocs1.length} readings_power=${powerDocs2.length}`);
-
-    // Cubo 10 min — último doc por cubo
-    const deyeMap  = new Map();
-    const powerMap = new Map();
-    for (const doc of deyeDocs) {
-      const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
-      deyeMap.set(key, doc);
-    }
-    for (const doc of powerDocs) {
-      const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
-      powerMap.set(key, doc);
-    }
-
-    const H = 10 / 60; // horas por cubo → kWh
-    let pvGen = 0, grid = 0, bat = 0, clima = 0;
-
-    for (const doc of deyeMap.values()) {
-      const dm = doc.metrics ?? {};
-      pvGen += (dm.inverter?.totalW ?? 0) / 1000 * H;
-      grid  += (dm.grid?.totalW    ?? 0) / 1000 * H;
-      bat   += -(dm.battery?.powerW ?? 0) / 1000 * H;
-    }
-    for (const doc of powerMap.values()) {
-      clima += (doc.metrics?.clima?.potenciaTotalkW ?? 0) * H;
-    }
-
-    const generacion     = pvGen + Math.max(0, -bat);
-    const consumoOficina = pvGen + grid + bat;
-
-    console.log(`[totals] pvGen=${pvGen.toFixed(2)} grid=${grid.toFixed(2)} bat=${bat.toFixed(2)} clima=${clima.toFixed(2)}`);
-
-    res.json({
-      pvGeneration:     +pvGen.toFixed(2),
-      gridDemand:       +grid.toFixed(2),
-      batteryFlow:      +bat.toFixed(2),
-      climaConsumption: +clima.toFixed(2),
-      generacion:       +generacion.toFixed(2),
-      consumoOficina:   +consumoOficina.toFixed(2),
-    });
+    console.log(`[totals] period=${period} since=${since.toISOString()} cur.consumo=${current.consumoOficina} prev.consumo=${prev.consumoOficina}`);
+    res.json({ ...current, prev });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

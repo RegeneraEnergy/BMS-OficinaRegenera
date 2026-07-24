@@ -84,6 +84,15 @@
   font-size: 0.6rem;
 }
 
+.trend-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.trend-good { color: #16a34a; }
+.trend-bad  { color: #dc2626; }
+
 @media (max-width: 1200px) {
   .stats-bar { grid-template-columns: repeat(3, 1fr); }
 }
