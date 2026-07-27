@@ -84,6 +84,28 @@ const COLOR_PALETTE = [
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 
+// Agrupación de campos de clima por prefijo del nombre de campo
+const CLIMA_FIELD_GROUPS = [
+  [['temp', 'sobrecalent', 'setTemp', 'zonaMuerta'],   'Temperaturas'],
+  [['presion'],                                          'Presiones'],
+  [['potencia', 'potReactiva', 'corriente', 'factor'],  'Potencia eléctrica'],
+  [['eerCop', 'seer', 'potTermica'],                    'Rendimiento'],
+  [['energia', 'elecEnergy', 'thEnergy'],               'Energía acumulada'],
+  [['caudal', 'velocidadFan'],                          'Ventilación'],
+  [['posicionEEV'],                                      'Válvulas EEV'],
+  [['co2'],                                              'Calidad del aire'],
+  [['compresor', 'notSyson', 'arrForzado', 'disable', 'habOnOff'], 'Estado'],
+];
+
+const CLIMA_GROUP_ORDER = CLIMA_FIELD_GROUPS.map(([, g]) => g);
+
+function climaSubgroup(fieldName) {
+  for (const [prefixes, group] of CLIMA_FIELD_GROUPS) {
+    if (prefixes.some(p => fieldName.startsWith(p))) return group;
+  }
+  return 'Otros';
+}
+
 function prettifyKey(dotKey) {
   const last = dotKey.split('.').pop();
   return last
@@ -96,6 +118,7 @@ function prettifyKey(dotKey) {
 function groupFromKey(dotKey) {
   const parts = dotKey.split('.');
   if (parts.length === 1) return 'General';
+  if (parts[0] === 'clima') return climaSubgroup(parts[1] ?? '');
   const g = parts[0];
   return g.charAt(0).toUpperCase() + g.slice(1);
 }
@@ -342,9 +365,17 @@ export default function HistoricalData({ canControl = true }) {
   const currentSelected = useMemo(() => selectedFields[activeTab] ?? new Set(), [selectedFields, activeTab]);
   const currentGroup    = activeGroup[activeTab]  ?? '';
 
-  const currentGroups = useMemo(() => (
-    [...new Set(currentFields.map(groupFromKey))]
-  ), [currentFields]);
+  const currentGroups = useMemo(() => {
+    const groups = [...new Set(currentFields.map(groupFromKey))];
+    return groups.sort((a, b) => {
+      const ia = CLIMA_GROUP_ORDER.indexOf(a);
+      const ib = CLIMA_GROUP_ORDER.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }, [currentFields]);
 
   const fieldsInGroup = useMemo(() => (
     currentFields.filter(k => groupFromKey(k) === currentGroup)
@@ -551,7 +582,7 @@ export default function HistoricalData({ canControl = true }) {
           <>
             {/* Botones de grupo + acciones en la misma línea */}
             <div className="clima-groups">
-              {currentGroups.filter(g => g.toLowerCase() !== 'clima').map(g => (
+              {currentGroups.map(g => (
                 <button
                   key={g}
                   className={`clima-group-btn ${currentGroup === g ? 'active' : ''}`}
