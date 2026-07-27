@@ -7,12 +7,12 @@ import HistoricalData from './components/HistoricalData';
 import Login from './components/Login';
 import DeployPanel from './components/DeployPanel';
 import { generateRealTimeData } from './data/mockData';
+import apiFetch from './apiFetch';
 
 const REFRESH_INTERVAL = 10000; // 10 segundos
-const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
 
 async function fetchLive() {
-  const res = await fetch(`${API_BASE}/api/live`);
+  const res = await apiFetch('/api/live');
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
 

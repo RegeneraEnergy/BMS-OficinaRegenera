@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './ScheduleManager.css';
-
-const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+import apiFetch from '../apiFetch';
 
 const DIAS = [
   { dow: 1, label: 'L', nombre: 'Lunes' },
@@ -62,7 +61,7 @@ export default function ScheduleManager({ onClose }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/schedule`);
+      const res = await apiFetch('/api/schedule');
       if (res.ok) setSchedules(await res.json());
     } catch (_e) {}
     finally { setLoading(false); }
@@ -77,7 +76,7 @@ export default function ScheduleManager({ onClose }) {
   }, [onClose]);
 
   const toggleActivo = async (s) => {
-    await fetch(`${API_BASE}/api/schedule/${s._id}`, {
+    await apiFetch(`/api/schedule/${s._id}`, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ ...s, _id: undefined, activo: !s.activo }),
@@ -87,7 +86,7 @@ export default function ScheduleManager({ onClose }) {
 
   const eliminar = async (id) => {
     if (!window.confirm('¿Eliminar este programa de horario?')) return;
-    await fetch(`${API_BASE}/api/schedule/${id}`, { method: 'DELETE' });
+    await apiFetch(`/api/schedule/${id}`, { method: 'DELETE' });
     load();
   };
 
@@ -142,9 +141,9 @@ export default function ScheduleManager({ onClose }) {
       delete body._id;
       // Si es puntual y se está editando, resetear ejecutado para que vuelva a disparar
       if (body.tipo === 'puntual') body.ejecutado = false;
-      const url    = editId ? `${API_BASE}/api/schedule/${editId}` : `${API_BASE}/api/schedule`;
+      const url    = editId ? `/api/schedule/${editId}` : '/api/schedule';
       const method = editId ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './HVACControl.css';
-
-const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+import apiFetch from '../apiFetch';
 
 const DEFAULT_CONFIG = {
   maquina:     false,
@@ -25,8 +24,8 @@ export default function HVACControl({ onClose }) {
       // fue encendida por un horario automático (el cron no actualiza hvacConfig).
       // Por eso usamos el estado real de la BD como fuente de verdad para config.maquina.
       const [configRes, liveRes] = await Promise.all([
-        fetch(`${API_BASE}/api/control/hvac`),
-        fetch(`${API_BASE}/api/live`),
+        apiFetch('/api/control/hvac'),
+        apiFetch('/api/live'),
       ]);
       const data = configRes.ok ? await configRes.json() : { ...DEFAULT_CONFIG };
       if (liveRes.ok) {
@@ -47,7 +46,7 @@ export default function HVACControl({ onClose }) {
   // Refresco periódico del estado real (solo para el indicador, no sobreescribe config)
   const loadEstadoReal = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/live`);
+      const res = await apiFetch('/api/live');
       if (res.ok) {
         const data = await res.json();
         if (data.maquinaArrancada !== undefined) setMaquinaReal(data.maquinaArrancada);
@@ -104,7 +103,7 @@ export default function HVACControl({ onClose }) {
   const save = async () => {
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/consignas`, {
+      const res = await apiFetch('/api/consignas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),

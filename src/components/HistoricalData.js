@@ -7,7 +7,7 @@ import './HistoricalData.css';
 import HVACControl from './HVACControl';
 import ScheduleManager from './ScheduleManager';
 
-const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+import apiFetch, { API_BASE } from '../apiFetch';
 
 const TABS = [
   { id: 'clima',    label: 'Clima',    icon: '🌬️' },
@@ -204,7 +204,7 @@ export default function HistoricalData({ canControl = true }) {
   async function loadFields(source, device) {
     const params = new URLSearchParams({ source });
     if (device) params.set('device', device);
-    const res = await fetch(`${API_BASE}/api/fields?${params}`);
+    const res = await apiFetch(`/api/fields?${params}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   }
@@ -266,7 +266,7 @@ export default function HistoricalData({ canControl = true }) {
         granularity: gran,
       });
       if (eff.device) params.set('device', eff.device);
-      const res = await fetch(`${API_BASE}/api/data?${params}`);
+      const res = await apiFetch(`/api/data?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = await res.json();
       if (result.length === 0) {

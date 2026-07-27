@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './StatsBar.css';
-
-const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+import apiFetch from '../apiFetch';
 
 async function fetchTotals(period) {
-  const res = await fetch(`${API_BASE}/api/totals?period=${period}`);
+  const res = await apiFetch(`/api/totals?period=${period}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

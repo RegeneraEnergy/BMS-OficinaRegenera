@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './DeployPanel.css';
-
-const API_BASE = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+import { API_BASE } from '../apiFetch';
 
 const RUN_BADGE = {
   queued:      { text: 'En cola',  cls: 'dp-rb-queued'   },
