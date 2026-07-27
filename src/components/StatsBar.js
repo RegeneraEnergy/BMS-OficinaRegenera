@@ -43,10 +43,10 @@ export default function StatsBar({ data }) {
 
   if (!data) return null;
 
-  const generacion     = data.pvGeneration + Math.max(0, -data.batteryFlow);
+  const generacion     = Math.max(0, data.pvGeneration) + Math.max(0, -data.batteryFlow);
   const consumoOficina = data.pvGeneration + data.gridDemand + data.batteryFlow;
   const selfSufficiency = consumoOficina > 0
-    ? Math.min(100, Math.round(generacion / consumoOficina * 100))
+    ? Math.min(100, Math.max(0, Math.round(generacion / consumoOficina * 100)))
     : 0;
 
   const kwhFmt = (v) => v != null ? `${v.toFixed(1)} kWh` : '—';
