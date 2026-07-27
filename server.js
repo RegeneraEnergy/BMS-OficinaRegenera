@@ -652,7 +652,7 @@ app.get('/api/consignas/log', async (req, res) => {
 // ── /api/schedule  (CRUD programas horarios) ─────────────────────────────────
 app.get('/api/schedule', async (req, res) => {
   try {
-    const docs = await db.collection('schedules').find({}).sort({ nombre: 1 }).toArray();
+    const docs = await db.collection('schedules').find({}).toArray();
     res.json(docs);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
