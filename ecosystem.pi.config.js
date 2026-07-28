@@ -43,5 +43,27 @@ module.exports = {
       merge_logs:         true,
       log_date_format:    'YYYY-MM-DD HH:mm:ss',
     },
+
+    // ── Lector CIAT: lee potencia Modbus cada 4s y variables cada 1min ─────────
+    // Script ubicado en el repo antiguo de la Pi:
+    //   /home/bms-regenera/BMS-OficinaRegenera/App-CIAT/servicio_clima.py
+    // Requiere en la Pi: pip3 install pymongo pymodbus
+    {
+      name:        'servicio-clima',
+      script:      '/home/bms-regenera/BMS-OficinaRegenera/App-CIAT/servicio_clima.py',
+      interpreter: 'python3',
+      env: {
+        // ⚠️  Misma URI de Azure Cosmos DB que agent-ciat:
+        MONGO_URI: 'PEGA_AQUI_LA_URI_DE_AZURE_COSMOS_DB',
+        DB_NAME:   'Oficina-REGENERA',
+      },
+      max_restarts:       10,
+      min_uptime:         '10s',
+      max_memory_restart: '150M',
+      out_file:           './logs/servicio-clima-out.log',
+      error_file:         './logs/servicio-clima-error.log',
+      merge_logs:         true,
+      log_date_format:    'YYYY-MM-DD HH:mm:ss',
+    },
   ],
 };

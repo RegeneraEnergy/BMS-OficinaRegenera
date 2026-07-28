@@ -181,7 +181,7 @@ app.get('/api/live', async (req, res) => {
     const [deye, ciat, power] = await Promise.all([
       col.findOne({ 'metadata.deviceId': DEYE_ID }, { sort: { ts: -1 } }),
       col.findOne({ 'metadata.deviceId': CIAT_ID }, { sort: { ts: -1 } }),
-      db.collection('reading_power').findOne({}, { sort: { ts: -1 } }),
+      db.collection('readings_power').findOne({}, { sort: { ts: -1 } }),
     ]);
 
     const dm = deye?.metrics ?? {};
