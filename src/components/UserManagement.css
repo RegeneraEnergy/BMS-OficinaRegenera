@@ -1,0 +1,201 @@
+.um-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 500;
+  display: flex;
+  justify-content: flex-end;
+  backdrop-filter: blur(2px);
+}
+
+.um-panel {
+  width: 420px;
+  max-width: 100vw;
+  height: 100%;
+  background: #ffffff;
+  box-shadow: -6px 0 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: um-slide-in 0.22s ease;
+}
+
+@keyframes um-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+
+.um-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.um-title {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.um-subtitle {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.um-close {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+.um-close:hover { background: #f1f5f9; color: #1e293b; }
+
+/* ─── Body ────────────────────────────────────────────────────────────────── */
+
+.um-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.um-loading {
+  color: #94a3b8;
+  text-align: center;
+  margin-top: 40px;
+  font-size: 0.9rem;
+}
+
+/* ─── Feedback ────────────────────────────────────────────────────────────── */
+
+.um-feedback {
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.um-feedback-ok  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.um-feedback-err { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+/* ─── Lista de usuarios ───────────────────────────────────────────────────── */
+
+.um-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.um-user-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #fafafa;
+  transition: box-shadow 0.15s;
+}
+.um-user-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+.um-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.um-username {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+  word-break: break-all;
+}
+
+.um-role {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.um-role-admin   { background: #fef3c7; color: #b45309; }
+.um-role-manager { background: #dbeafe; color: #1d4ed8; }
+.um-role-viewer  { background: #f1f5f9; color: #64748b; }
+
+/* ─── Edición ─────────────────────────────────────────────────────────────── */
+
+.um-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.um-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.um-input:focus { border-color: #8cbd31; box-shadow: 0 0 0 3px rgba(140,189,49,0.15); }
+
+.um-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─── Botones ─────────────────────────────────────────────────────────────── */
+
+.um-btn {
+  border: none;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 7px 14px;
+  transition: opacity 0.15s, background 0.15s;
+}
+.um-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.um-btn-edit {
+  background: #f1f5f9;
+  color: #475569;
+  width: 100%;
+}
+.um-btn-edit:hover:not(:disabled) { background: #e2e8f0; }
+
+.um-btn-save {
+  background: #8cbd31;
+  color: #ffffff;
+  flex: 1;
+}
+.um-btn-save:hover:not(:disabled) { opacity: 0.88; }
+
+.um-btn-cancel {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.um-btn-cancel:hover:not(:disabled) { background: #e2e8f0; }

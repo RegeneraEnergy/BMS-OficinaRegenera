@@ -8,11 +8,15 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 const IS_PROD    = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
-const USERS = {
-  'BMS-Regenera-admin':        { hash: '$2b$12$c0kWO7MahiyPdpo7gFE2aO9MeljRfgGm9mdTaSH5CIQJP.6qz3Riu', role: 'admin'   },
-  'BMS-OficinaRegenera-manager':{ hash: '$2b$12$PCvQsn4a95IbLZlPI5E4oOuNHMJPsjevj5ZAaKDy8IP3ajdSM3vEK', role: 'manager' },
-  'BMS-OficinaRegenera':        { hash: '$2b$12$Zdm90BW9vJkU.z7Hw.4KHendmdWMG90Gstqm4o5TiPD8vfyAw4kje', role: 'viewer'  },
-};
+
+// Seed data — solo se usa si la colección 'users' de MongoDB está vacía,
+// o como fallback de emergencia si la BD no está disponible en el login.
+const USERS_SEED = [
+  { username: 'BMS-Regenera-admin',          role: 'admin',   hash: '$2b$12$c0kWO7MahiyPdpo7gFE2aO9MeljRfgGm9mdTaSH5CIQJP.6qz3Riu' },
+  { username: 'BMS-OficinaRegenera-manager', role: 'manager', hash: '$2b$12$PCvQsn4a95IbLZlPI5E4oOuNHMJPsjevj5ZAaKDy8IP3ajdSM3vEK' },
+  { username: 'BMS-OficinaRegenera',         role: 'viewer',  hash: '$2b$12$Zdm90BW9vJkU.z7Hw.4KHendmdWMG90Gstqm4o5TiPD8vfyAw4kje' },
+];
+const USERS_FALLBACK = Object.fromEntries(USERS_SEED.map(u => [u.username, u]));
 
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization ?? '';
@@ -80,7 +84,13 @@ app.get('/api/health', (req, res) => {
 // ── Autenticación ─────────────────────────────────────────────────────────────
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body ?? {};
-  const user = USERS[username];
+  let user = null;
+  if (dbReady) {
+    user = await db.collection('users').findOne({ username });
+  }
+  // Fallback a seed hardcodeado si la BD no está lista todavía
+  if (!user) user = USERS_FALLBACK[username] ?? null;
+
   if (!user || !await bcryptjs.compare(password ?? '', user.hash)) {
     return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
   }
@@ -132,6 +142,12 @@ app.listen(PORT, () => console.log(`[API] Escuchando en http://localhost:${PORT}
     for (const col of ['readings', 'readings_power']) {
       db.collection(col).createIndex({ ts: 1 }).catch(() => {});
       db.collection(col).createIndex({ 'metadata.deviceId': 1, ts: 1 }).catch(() => {});
+    }
+    // Migrar usuarios hardcodeados a MongoDB si la colección está vacía
+    const userCount = await db.collection('users').countDocuments();
+    if (userCount === 0) {
+      await db.collection('users').insertMany(USERS_SEED);
+      console.log('[users] Colección inicializada con usuarios seed');
     }
   } catch (err) {
     console.error('[FATAL] MongoDB no disponible:', err.message);
@@ -685,6 +701,33 @@ app.put('/api/schedule/:id', async (req, res) => {
 app.delete('/api/schedule/:id', async (req, res) => {
   try {
     await db.collection('schedules').deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Gestión de usuarios (admin) ──────────────────────────────────────────────
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await db.collection('users')
+      .find({}, { projection: { hash: 0 } })
+      .sort({ role: 1, username: 1 })
+      .toArray();
+    res.json(users);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/users/:username/password', requireAdmin, async (req, res) => {
+  try {
+    const { password } = req.body ?? {};
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+    }
+    const hash   = await bcryptjs.hash(password, 12);
+    const result = await db.collection('users').updateOne(
+      { username: req.params.username },
+      { $set: { hash } }
+    );
+    if (result.matchedCount === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

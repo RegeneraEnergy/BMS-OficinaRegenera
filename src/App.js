@@ -6,6 +6,7 @@ import EnergyFlow from './components/EnergyFlow';
 import HistoricalData from './components/HistoricalData';
 import Login from './components/Login';
 import DeployPanel from './components/DeployPanel';
+import UserManagement from './components/UserManagement';
 import { generateRealTimeData } from './data/mockData';
 import apiFetch from './apiFetch';
 
@@ -60,6 +61,7 @@ function Dashboard({ onLogout, isAdmin, canControl }) {
   const [liveData, setLiveData]     = useState(null);
   const [apiStatus, setApiStatus]   = useState('connecting');
   const [showDeploy, setShowDeploy] = useState(false);
+  const [showUsers, setShowUsers]   = useState(false);
 
   const refreshLive = useCallback(async () => {
     try {
@@ -86,8 +88,10 @@ function Dashboard({ onLogout, isAdmin, canControl }) {
         apiStatus={apiStatus}
         onLogout={onLogout}
         onDeploy={isAdmin ? () => setShowDeploy(true) : undefined}
+        onUsers={isAdmin ? () => setShowUsers(true) : undefined}
       />
       {showDeploy && <DeployPanel onClose={() => setShowDeploy(false)} />}
+      {showUsers  && <UserManagement onClose={() => setShowUsers(false)} />}
       <main className="main-content">
         <StatsBar data={liveData} />
         <EnergyFlow data={liveData} />

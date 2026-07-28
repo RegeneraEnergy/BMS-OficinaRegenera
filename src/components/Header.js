@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Header.css';
 
-export default function Header({ lastUpdate, apiStatus, onLogout, onDeploy }) {
+export default function Header({ lastUpdate, apiStatus, onLogout, onDeploy, onUsers }) {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -36,6 +36,12 @@ export default function Header({ lastUpdate, apiStatus, onLogout, onDeploy }) {
             <div className="last-update">Actualizado: {new Date(lastUpdate).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
           )}
         </div>
+
+        {onUsers && (
+          <button className="deploy-trigger-btn" onClick={onUsers} title="Gestión de usuarios">
+            Usuarios
+          </button>
+        )}
 
         {onDeploy && (
           <button className="deploy-trigger-btn" onClick={onDeploy} title="Panel de despliegue">
