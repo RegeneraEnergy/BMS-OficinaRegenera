@@ -20,13 +20,20 @@ function AnimatedDot({ path, color, duration, delay = 0, reverse = false }) {
   );
 }
 
+const MAX_KW_FRIO  = 28.3;
+const MAX_KW_CALOR = 24.7;
+
 export default function EnergyFlow({ data }) {
   if (!data) return null;
 
   const { pvGeneration, climaConsumption,
-          gridDemand, batteryFlow, batteryLevel, exterior, interior } = data;
+          gridDemand, batteryFlow, batteryLevel, exterior, interior, clima } = data;
 
   const batteryCharging = batteryFlow > 0;
+
+  const isCooling   = (clima?.tempImpulsionC ?? 0) <= (clima?.tempRetornoC ?? 999);
+  const maxClimaKW  = isCooling ? MAX_KW_FRIO : MAX_KW_CALOR;
+  const climaLoadPct = Math.min(100, Math.max(0, Math.round(climaConsumption / maxClimaKW * 100)));
   const co2Level = interior.co2 > 1200 ? 'bad' : interior.co2 > 900 ? 'poor' : interior.co2 > 600 ? 'acceptable' : 'good';
   const co2Color  = co2Level === 'bad' ? '#ef4444' : co2Level === 'poor' ? '#f97316' : co2Level === 'acceptable' ? '#eab308' : '#22c55e';
   const generacion = pvGeneration + Math.max(0, -batteryFlow);
@@ -263,7 +270,18 @@ export default function EnergyFlow({ data }) {
             <div className="node-value clima-value">
               {climaConsumption.toFixed(2)}<span className="unit">kW</span>
             </div>
-            <div className="node-status status-clima">Activo</div>
+            <div className="clima-load-bar-wrap">
+              <div className="clima-load-bar">
+                <div className="clima-load-fill" style={{
+                  width: `${climaLoadPct}%`,
+                  background: climaLoadPct > 85 ? '#ef4444' : climaLoadPct > 60 ? '#f59e0b' : '#06b6d4',
+                }} />
+              </div>
+              <span className="clima-load-pct">{climaLoadPct}%</span>
+            </div>
+            <div className="node-status status-clima">
+              Carga {isCooling ? 'frío' : 'calor'} · {climaLoadPct}%
+            </div>
           </div>
         </div>
 

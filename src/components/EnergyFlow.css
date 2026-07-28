@@ -146,6 +146,20 @@
 .status-bat-discharge{ background: #ede9fe; color: #7c3aed; }
 .status-clima        { background: #cffafe; color: #0891b2; }
 
+/* ── Clima load bar ── */
+.clima-load-bar-wrap {
+  display: flex; align-items: center; gap: 5px; margin-top: 5px; width: 100%;
+}
+.clima-load-bar {
+  flex: 1; height: 6px; background: #e0f7fa; border-radius: 3px; overflow: hidden;
+}
+.clima-load-fill {
+  height: 100%; border-radius: 3px; transition: width 1s, background 0.5s;
+}
+.clima-load-pct {
+  font-size: 0.65rem; font-weight: 700; color: #0891b2; min-width: 28px; text-align: right;
+}
+
 /* ═══════════════════════════════
    BATTERY VISUAL
 ═══════════════════════════════ */
