@@ -172,7 +172,7 @@ export default function PowerHistory() {
       const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), granularity: gran });
       const [deyeRes, ciatRes] = await Promise.all([
         apiFetch(`/api/data?source=readings&device=deye&${params}`),
-        apiFetch(`/api/data?source=power&${params}`),
+        apiFetch(`/api/data?source=readings&device=ciat&${params}`),
       ]);
       if (!deyeRes.ok) throw new Error(`Deye: HTTP ${deyeRes.status}`);
       if (!ciatRes.ok) throw new Error(`CIAT: HTTP ${ciatRes.status}`);
@@ -189,6 +189,15 @@ export default function PowerHistory() {
 
   useEffect(() => { fetchData(appliedFrom, appliedTo, granularity); }, []);  // eslint-disable-line
 
+  function handleChartType(type) {
+    setChartType(type);
+    if (type === 'pie') {
+      fetchData(appliedFrom, appliedTo, '1h');
+    } else if (chartType === 'pie') {
+      fetchData(appliedFrom, appliedTo, granularity);
+    }
+  }
+
   function applyFilter() {
     const from = new Date(draftFrom);
     const to   = new Date(draftTo);
@@ -196,7 +205,7 @@ export default function PowerHistory() {
     setAppliedFrom(from);
     setAppliedTo(to);
     setGranularity(draftGran);
-    fetchData(from, to, draftGran);
+    fetchData(from, to, chartType === 'pie' ? '1h' : draftGran);
   }
 
   function applyLast24h() {
@@ -409,7 +418,7 @@ export default function PowerHistory() {
             <button
               key={ct.id}
               className={`ph-type-btn ${chartType === ct.id ? 'active' : ''}`}
-              onClick={() => setChartType(ct.id)}
+              onClick={() => handleChartType(ct.id)}
             >
               {ct.label}
             </button>
@@ -428,17 +437,19 @@ export default function PowerHistory() {
           <button className="ph-btn-24h"   onClick={applyLast24h}>Últimas 24h</button>
         </div>
 
-        <div className="ph-gran-row">
-          {GRANULARITIES.map(g => (
-            <button
-              key={g.id}
-              className={`ph-gran-btn ${draftGran === g.id ? 'active' : ''}`}
-              onClick={() => setDraftGran(g.id)}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
+        {chartType !== 'pie' && (
+          <div className="ph-gran-row">
+            {GRANULARITIES.map(g => (
+              <button
+                key={g.id}
+                className={`ph-gran-btn ${draftGran === g.id ? 'active' : ''}`}
+                onClick={() => setDraftGran(g.id)}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Selector de series ────────────────────────────────────────────── */}
