@@ -326,16 +326,28 @@ function getMetricsObj(doc) {
 // ── /api/fields ──────────────────────────────────────────────────────────────
 // Devuelve las claves numéricas/booleanas disponibles en la colección.
 // ?source=power|readings  ?device=ciat|deye  (device opcional, regex case-insensitive)
+// Solo mira los últimos 2 días para evitar mezclar campos de versiones antiguas
+// del script con los campos actuales. Si no hay docs recientes, usa los últimos 30.
 app.get('/api/fields', async (req, res) => {
   try {
     const { source = 'power', device } = req.query;
     const colName = source === 'power' ? 'readings_power' : 'readings';
     const col = db.collection(colName);
 
-    const filter = {};
-    if (device) filter['metadata.deviceId'] = { deye: DEYE_ID, ciat: CIAT_ID }[device.toLowerCase()] ?? new RegExp(device, 'i');
+    const deviceFilter = {};
+    if (device) deviceFilter['metadata.deviceId'] = { deye: DEYE_ID, ciat: CIAT_ID }[device.toLowerCase()] ?? new RegExp(device, 'i');
 
-    const samples = await col.find(filter).sort({ ts: -1 }).limit(30).toArray();
+    const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    let samples = await col
+      .find({ ...deviceFilter, ts: { $gte: since48h } })
+      .sort({ ts: -1 })
+      .limit(50)
+      .toArray();
+
+    // Fallback: si no hay datos recientes, usar los últimos 30 sin filtro temporal
+    if (samples.length === 0) {
+      samples = await col.find(deviceFilter).sort({ ts: -1 }).limit(30).toArray();
+    }
 
     const allKeys = new Set();
     for (const doc of samples) flattenKeys(getMetricsObj(doc), '', allKeys);
