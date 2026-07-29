@@ -105,7 +105,7 @@ function computeNestedPie(data) {
     inner: [
       { name: 'Climatización',  value: climaAvg,                                        color: '#8b5cf6' },
       { name: 'Batería',        value: battAvg,                                         color: '#10b981' },
-      { name: 'Otros consumos', value: +Math.max(0, pvAvg + gridAvg - climaAvg).toFixed(2), color: '#64748b' },
+      { name: 'Otros consumos', value: +Math.max(0, pvAvg + gridAvg - climaAvg - battAvg).toFixed(2), color: '#64748b' },
     ].filter(d => d.value > 0),
     outer: [
       { name: 'Generación FV', value: pvAvg,   color: '#f59e0b' },
