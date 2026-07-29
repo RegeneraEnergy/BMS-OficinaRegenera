@@ -86,30 +86,32 @@ function mergeDatasets(deyeRows, ciatRows) {
   return [...map.values()].sort((a, b) => a.datetime.localeCompare(b.datetime));
 }
 
+// Con granularidad 1h cada punto representa 1 hora, así que la suma de
+// los valores en kW equivale directamente a kWh para el periodo completo.
 function computeNestedPie(data) {
-  const sums = {}, counts = {};
+  const sums = {};
   for (const row of data) {
     for (const s of SERIES) {
       const v = row[s.key];
       if (v == null) continue;
-      sums[s.key]   = (sums[s.key]   ?? 0) + Math.abs(v);
-      counts[s.key] = (counts[s.key] ?? 0) + 1;
+      sums[s.key] = (sums[s.key] ?? 0) + Math.abs(v);
     }
   }
-  const avg = key => counts[key] > 0 ? +(sums[key] / counts[key]).toFixed(2) : 0;
-  const pvAvg    = avg('pvKW');
-  const gridAvg  = avg('gridKW');
-  const battAvg  = avg('batteryKW');
-  const climaAvg = avg('climaKW');
+  const kwh = key => +(sums[key] ?? 0).toFixed(1);
+  const pvKWh    = kwh('pvKW');
+  const gridKWh  = kwh('gridKW');
+  const battKWh  = kwh('batteryKW');
+  const climaKWh = kwh('climaKW');
+  const otrosKWh = +Math.max(0, pvKWh + gridKWh - climaKWh - battKWh).toFixed(1);
   return {
     inner: [
-      { name: 'Climatización',  value: climaAvg,                                        color: '#8b5cf6' },
-      { name: 'Batería',        value: battAvg,                                         color: '#10b981' },
-      { name: 'Otros consumos', value: +Math.max(0, pvAvg + gridAvg - climaAvg - battAvg).toFixed(2), color: '#64748b' },
+      { name: 'Climatización',  value: climaKWh, color: '#8b5cf6' },
+      { name: 'Batería',        value: battKWh,  color: '#10b981' },
+      { name: 'Otros consumos', value: otrosKWh, color: '#64748b' },
     ].filter(d => d.value > 0),
     outer: [
-      { name: 'Generación FV', value: pvAvg,   color: '#f59e0b' },
-      { name: 'Red eléctrica', value: gridAvg, color: '#3b82f6' },
+      { name: 'Generación FV', value: pvKWh,   color: '#f59e0b' },
+      { name: 'Red eléctrica', value: gridKWh, color: '#3b82f6' },
     ].filter(d => d.value > 0),
   };
 }
@@ -136,7 +138,7 @@ function PieTooltip({ active, payload }) {
     <div className="ph-tooltip">
       <p className="ph-tooltip-row" style={{ color: payload[0].payload.color }}>
         <span>{payload[0].name}:</span>
-        <span><b>{payload[0].value}</b> kW media</span>
+        <span><b>{payload[0].value.toFixed(1)}</b> kWh</span>
       </p>
     </div>
   );
@@ -280,19 +282,20 @@ export default function PowerHistory() {
       const { inner, outer } = nestedPie;
       if (!inner.length) return <div className="ph-empty">Sin datos</div>;
       const R = Math.PI / 180;
-      const innerLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, percent }) => {
+      const innerLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, percent, value }) => {
         if (percent < 0.06) return null;
         const r = innerRadius + (outerRadius - innerRadius) * 0.5;
         const x = cx + r * Math.cos(-midAngle * R);
         const y = cy + r * Math.sin(-midAngle * R);
         return (
           <g>
-            <text x={x} y={y - 7} fill="white" textAnchor="middle" fontSize={11} fontWeight={700}>{name}</text>
-            <text x={x} y={y + 7} fill="rgba(255,255,255,0.8)" textAnchor="middle" fontSize={10}>{`${(percent * 100).toFixed(1)}%`}</text>
+            <text x={x} y={y - 12} fill="white" textAnchor="middle" fontSize={10} fontWeight={700}>{name}</text>
+            <text x={x} y={y + 1}  fill="rgba(255,255,255,0.95)" textAnchor="middle" fontSize={10}>{`${value.toFixed(1)} kWh`}</text>
+            <text x={x} y={y + 13} fill="rgba(255,255,255,0.75)" textAnchor="middle" fontSize={9}>{`${(percent * 100).toFixed(1)}%`}</text>
           </g>
         );
       };
-      const outerLabel = ({ cx, cy, midAngle, outerRadius, name, percent }) => {
+      const outerLabel = ({ cx, cy, midAngle, outerRadius, name, percent, value }) => {
         if (percent < 0.03) return null;
         const r = outerRadius + 26;
         const x = cx + r * Math.cos(-midAngle * R);
@@ -300,8 +303,9 @@ export default function PowerHistory() {
         const anchor = x > cx ? 'start' : 'end';
         return (
           <g>
-            <text x={x} y={y - 6} fill="#1e293b" textAnchor={anchor} fontSize={11} fontWeight={600}>{name}</text>
-            <text x={x} y={y + 8} fill="#64748b" textAnchor={anchor} fontSize={10}>{`${(percent * 100).toFixed(1)}%`}</text>
+            <text x={x} y={y - 8}  fill="#1e293b" textAnchor={anchor} fontSize={11} fontWeight={600}>{name}</text>
+            <text x={x} y={y + 5}  fill="#334155" textAnchor={anchor} fontSize={10}>{`${value.toFixed(1)} kWh`}</text>
+            <text x={x} y={y + 17} fill="#64748b" textAnchor={anchor} fontSize={10}>{`${(percent * 100).toFixed(1)}%`}</text>
           </g>
         );
       };
