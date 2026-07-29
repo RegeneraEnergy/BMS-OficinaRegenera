@@ -94,14 +94,18 @@ function computeNestedPie(data) {
     for (const s of SERIES) {
       const v = row[s.key];
       if (v == null) continue;
-      sums[s.key] = (sums[s.key] ?? 0) + Math.abs(v);
+      // Batería conserva el signo (positivo=descarga, negativo=carga).
+      // El resto se acumula en valor absoluto.
+      sums[s.key] = (sums[s.key] ?? 0) + (s.key === 'batteryKW' ? v : Math.abs(v));
     }
   }
-  const kwh = key => +(sums[key] ?? 0).toFixed(1);
+  const kwh      = key => +(sums[key] ?? 0).toFixed(1);
   const pvKWh    = kwh('pvKW');
   const gridKWh  = kwh('gridKW');
-  const battKWh  = kwh('batteryKW');
   const climaKWh = kwh('climaKW');
+  // Invertimos el signo: si la suma es negativa (carga neta) → positivo = consumo.
+  // Si es positiva (descarga neta) → negativo → se filtra del anillo interior.
+  const battKWh  = +(-(sums.batteryKW ?? 0)).toFixed(1);
   const otrosKWh = +Math.max(0, pvKWh + gridKWh - climaKWh - battKWh).toFixed(1);
   return {
     inner: [
