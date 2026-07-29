@@ -142,6 +142,22 @@ function PieTooltip({ active, payload }) {
   );
 }
 
+/* ── CSV export ────────────────────────────────────────────────────────────── */
+function exportCSV(data, from, to) {
+  if (!data.length) return;
+  const labelRow = ['Fecha/Hora', ...SERIES.map(s => `${s.label} (kW)`)];
+  const rows = data.map(row => [
+    `"${new Date(row.datetime).toLocaleString('es-ES')}"`,
+    ...SERIES.map(s => row[s.key] != null ? row[s.key] : ''),
+  ].join(','));
+  const blob = new Blob(['﻿' + [labelRow.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const dateStr = from.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+  a.href = url; a.download = `regenera-potencias-${dateStr}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════
    Componente principal
 ══════════════════════════════════════════════════════════════════════════════ */
@@ -412,17 +428,29 @@ export default function PowerHistory() {
           <span className="ph-range">{fromLabel} — {toLabel} · {rowCount} registros</span>
         </div>
 
-        {/* Tipo de gráfico */}
-        <div className="ph-chart-type">
-          {CHART_TYPES.map(ct => (
-            <button
-              key={ct.id}
-              className={`ph-type-btn ${chartType === ct.id ? 'active' : ''}`}
-              onClick={() => handleChartType(ct.id)}
-            >
-              {ct.label}
-            </button>
-          ))}
+        <div className="ph-header-right">
+          {/* Tipo de gráfico */}
+          <div className="ph-chart-type">
+            {CHART_TYPES.map(ct => (
+              <button
+                key={ct.id}
+                className={`ph-type-btn ${chartType === ct.id ? 'active' : ''}`}
+                onClick={() => handleChartType(ct.id)}
+              >
+                {ct.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Descarga CSV */}
+          <button
+            className="ph-download-btn"
+            onClick={() => exportCSV(data, appliedFrom, appliedTo)}
+            disabled={!data.length}
+            title="Descargar datos como CSV"
+          >
+            ⬇ CSV
+          </button>
         </div>
       </div>
 
