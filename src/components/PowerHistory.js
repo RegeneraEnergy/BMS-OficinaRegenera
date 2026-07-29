@@ -103,9 +103,9 @@ function computeNestedPie(data) {
   const climaAvg = avg('climaKW');
   return {
     inner: [
-      { name: 'Climatización',  value: climaAvg,                      color: '#8b5cf6' },
-      { name: 'Batería',        value: battAvg,                       color: '#10b981' },
-      { name: 'Otros consumos', value: +(pvAvg + gridAvg).toFixed(2), color: '#64748b' },
+      { name: 'Climatización',  value: climaAvg,                                        color: '#8b5cf6' },
+      { name: 'Batería',        value: battAvg,                                         color: '#10b981' },
+      { name: 'Otros consumos', value: +Math.max(0, pvAvg + gridAvg - climaAvg).toFixed(2), color: '#64748b' },
     ].filter(d => d.value > 0),
     outer: [
       { name: 'Generación FV', value: pvAvg,   color: '#f59e0b' },
