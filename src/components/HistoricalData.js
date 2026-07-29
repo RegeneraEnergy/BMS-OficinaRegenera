@@ -84,17 +84,29 @@ const COLOR_PALETTE = [
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
 
-// Agrupación de campos de clima por prefijo del nombre de campo
+// Agrupación de campos de clima por prefijo del nombre de campo.
+// ⚠ El orden importa: se devuelve el PRIMER grupo cuyo prefijo coincide con startsWith.
+// Los prefijos más específicos que comparten inicio con otros deben ir en su grupo
+// ANTES del prefijo genérico (p.ej. 'zonaMuertaTemp' antes que 'zonaMuerta').
 const CLIMA_FIELD_GROUPS = [
-  [['temp', 'sobrecalent', 'setTemp', 'zonaMuerta'],   'Temperaturas'],
-  [['presion'],                                          'Presiones'],
-  [['potencia', 'potReactiva', 'corriente', 'factor'],  'Potencia eléctrica'],
-  [['eerCop', 'seer', 'potTermica'],                    'Rendimiento'],
-  [['energia', 'elecEnergy', 'thEnergy'],               'Energía acumulada'],
-  [['caudal', 'velocidadFan'],                          'Ventilación'],
-  [['posicionEEV'],                                      'Válvulas EEV'],
-  [['co2'],                                              'Calidad del aire'],
-  [['compresor', 'notSyson', 'arrForzado', 'disable', 'habOnOff'], 'Estado'],
+  [['temp', 'sobrecalent', 'setTemp', 'zonaMuertaTemp',
+    'sondaAmb', 'sondaImp', 'sondaMezcla', 'sondaBms',
+    'setAltaTemp', 'setBajaTemp', 'setExtLim', 'setIntLim',
+    'setPointCalor', 'setPointFrio', 'setPointTemp'],            'Temperaturas'],
+  [['presion'],                                                   'Presiones'],
+  [['potencia', 'potReactiva', 'potReact', 'corriente',
+    'factor', 'frecuencia'],                                     'Potencia eléctrica'],
+  [['eerCop', 'seer', 'potTermica', 'scop', 'sperf'],           'Rendimiento'],
+  [['energia', 'elecEnergy', 'thEnergy', 'nHor'],               'Energía acumulada'],
+  [['caudal', 'velocidadFan', 'velocidad', 'setCaudal',
+    'porcCaudal', 'setRenovacion', 'renovacion', 'ventilador'],  'Ventilación'],
+  [['posicionEEV', 'aperCompuerta', 'compuerta', 'calAper'],    'Válvulas EEV'],
+  [['co2', 'humedad', 'entalpia', 'setPointHumedad',
+    'zonaMuertaHum'],                                            'Calidad del aire'],
+  [['compresor', 'notSyson', 'arrForzado', 'disable', 'habOnOff',
+    'modo', 'onCompresor', 'onFreecool', 'onFreeheat', 'sysOn',
+    'infoEquipo', 'habRes', 'numEtapas', 'nArr', 'timeMin',
+    'tipoProg', 'typeInductive', 'setHorComp', 'setHorOn'],      'Estado'],
 ];
 
 const CLIMA_GROUP_ORDER = CLIMA_FIELD_GROUPS.map(([, g]) => g);
