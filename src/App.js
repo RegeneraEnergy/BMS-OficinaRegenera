@@ -7,6 +7,7 @@ import HistoricalData from './components/HistoricalData';
 import Login from './components/Login';
 import DeployPanel from './components/DeployPanel';
 import UserManagement from './components/UserManagement';
+import PowerHistory from './components/PowerHistory';
 import { generateRealTimeData } from './data/mockData';
 import apiFetch from './apiFetch';
 
@@ -95,6 +96,7 @@ function Dashboard({ onLogout, isAdmin, canControl }) {
       <main className="main-content">
         <StatsBar data={liveData} />
         <EnergyFlow data={liveData} />
+        <PowerHistory />
         <HistoricalData canControl={canControl} />
       </main>
       <footer className="footer">

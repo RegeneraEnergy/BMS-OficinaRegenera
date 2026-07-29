@@ -1,0 +1,243 @@
+.ph-section {
+  margin: 0 32px 32px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+/* ─── Cabecera ────────────────────────────────────────────────────────────── */
+
+.ph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 24px 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ph-title h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 2px;
+}
+
+.ph-range {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  display: block;
+}
+
+/* ─── Tipo de gráfico ────────────────────────────────────────────────────── */
+
+.ph-chart-type {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.ph-type-btn {
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.ph-type-btn.active {
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  font-weight: 600;
+}
+
+/* ─── Filtros ────────────────────────────────────────────────────────────── */
+
+.ph-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 24px 0;
+}
+
+.ph-date-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ph-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.ph-date-input {
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: #1e293b;
+  background: #f8fafc;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.ph-date-input:focus { border-color: #8cbd31; }
+
+.ph-btn-apply {
+  padding: 7px 18px;
+  background: #8cbd31;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.ph-btn-apply:hover { opacity: 0.88; }
+
+.ph-btn-24h {
+  padding: 7px 14px;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ph-btn-24h:hover { background: #e2e8f0; }
+
+/* ─── Granularidad ───────────────────────────────────────────────────────── */
+
+.ph-gran-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ph-gran-btn {
+  padding: 4px 12px;
+  border: 1px solid #e2e8f0;
+  background: transparent;
+  color: #64748b;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ph-gran-btn.active {
+  background: #1e293b;
+  color: #ffffff;
+  border-color: #1e293b;
+  font-weight: 600;
+}
+
+.ph-gran-btn:hover:not(.active) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+/* ─── Selector de series ─────────────────────────────────────────────────── */
+
+.ph-series-selector {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 24px 0;
+}
+
+.ph-series-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e2e8f0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.ph-series-chip.active {
+  font-weight: 600;
+}
+
+.ph-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─── Gráfico ────────────────────────────────────────────────────────────── */
+
+.ph-chart-wrap {
+  padding: 16px 24px 24px;
+}
+
+.ph-empty,
+.ph-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 340px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.ph-loading { color: #8cbd31; }
+
+.ph-error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+/* ─── Tooltip ────────────────────────────────────────────────────────────── */
+
+.ph-tooltip {
+  background: rgba(15, 23, 42, 0.92);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: #f1f5f9;
+  backdrop-filter: blur(4px);
+}
+
+.ph-tooltip-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0 0 6px;
+}
+
+.ph-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 2px 0;
+}
