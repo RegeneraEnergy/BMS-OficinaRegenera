@@ -26,7 +26,6 @@ const CHART_TYPES = [
 ];
 
 const GRANULARITIES = [
-  { id: 'raw', label: 'Máx.' },
   { id: '5m',  label: '5 min' },
   { id: '10m', label: '10 min' },
   { id: '15m', label: '15 min' },
