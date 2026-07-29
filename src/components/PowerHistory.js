@@ -86,24 +86,32 @@ function mergeDatasets(deyeRows, ciatRows) {
   return [...map.values()].sort((a, b) => a.datetime.localeCompare(b.datetime));
 }
 
-function computePie(data, activeSet) {
+function computeNestedPie(data) {
   const sums = {}, counts = {};
   for (const row of data) {
     for (const s of SERIES) {
-      if (!activeSet.has(s.key)) continue;
       const v = row[s.key];
       if (v == null) continue;
       sums[s.key]   = (sums[s.key]   ?? 0) + Math.abs(v);
       counts[s.key] = (counts[s.key] ?? 0) + 1;
     }
   }
-  return SERIES
-    .filter(s => activeSet.has(s.key) && (sums[s.key] ?? 0) > 0)
-    .map(s => ({
-      name:  s.label,
-      value: +(sums[s.key] / (counts[s.key] || 1)).toFixed(2),
-      color: s.color,
-    }));
+  const avg = key => counts[key] > 0 ? +(sums[key] / counts[key]).toFixed(2) : 0;
+  const pvAvg    = avg('pvKW');
+  const gridAvg  = avg('gridKW');
+  const battAvg  = avg('batteryKW');
+  const climaAvg = avg('climaKW');
+  return {
+    inner: [
+      { name: 'Climatización',  value: climaAvg,                      color: '#8b5cf6' },
+      { name: 'Batería',        value: battAvg,                       color: '#10b981' },
+      { name: 'Otros consumos', value: +(pvAvg + gridAvg).toFixed(2), color: '#64748b' },
+    ].filter(d => d.value > 0),
+    outer: [
+      { name: 'Generación FV', value: pvAvg,   color: '#f59e0b' },
+      { name: 'Red eléctrica', value: gridAvg, color: '#3b82f6' },
+    ].filter(d => d.value > 0),
+  };
 }
 
 /* ── Tooltip ───────────────────────────────────────────────────────────────── */
@@ -212,8 +220,8 @@ export default function PowerHistory() {
     });
   }
 
-  const activeSeries  = SERIES.filter(s => active.has(s.key));
-  const pieData       = useMemo(() => computePie(data, active), [data, active]);
+  const activeSeries = SERIES.filter(s => active.has(s.key));
+  const nestedPie    = useMemo(() => computeNestedPie(data), [data]);
 
   /* ── Renderizado del gráfico ─────────────────────────────────────────────── */
   const commonXAxis = (
@@ -244,24 +252,65 @@ export default function PowerHistory() {
     }
 
     if (chartType === 'pie') {
-      if (!pieData.length) return <div className="ph-empty">Sin datos</div>;
+      const { inner, outer } = nestedPie;
+      if (!inner.length) return <div className="ph-empty">Sin datos</div>;
+      const R = Math.PI / 180;
+      const innerLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name, percent }) => {
+        if (percent < 0.06) return null;
+        const r = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + r * Math.cos(-midAngle * R);
+        const y = cy + r * Math.sin(-midAngle * R);
+        return (
+          <g>
+            <text x={x} y={y - 7} fill="white" textAnchor="middle" fontSize={11} fontWeight={700}>{name}</text>
+            <text x={x} y={y + 7} fill="rgba(255,255,255,0.8)" textAnchor="middle" fontSize={10}>{`${(percent * 100).toFixed(1)}%`}</text>
+          </g>
+        );
+      };
+      const outerLabel = ({ cx, cy, midAngle, outerRadius, name, percent }) => {
+        if (percent < 0.03) return null;
+        const r = outerRadius + 26;
+        const x = cx + r * Math.cos(-midAngle * R);
+        const y = cy + r * Math.sin(-midAngle * R);
+        const anchor = x > cx ? 'start' : 'end';
+        return (
+          <g>
+            <text x={x} y={y - 6} fill="#1e293b" textAnchor={anchor} fontSize={11} fontWeight={600}>{name}</text>
+            <text x={x} y={y + 8} fill="#64748b" textAnchor={anchor} fontSize={10}>{`${(percent * 100).toFixed(1)}%`}</text>
+          </g>
+        );
+      };
       return (
-        <ResponsiveContainer width="100%" height={340}>
+        <ResponsiveContainer width="100%" height={400}>
           <PieChart>
             <Pie
-              data={pieData}
+              data={inner}
               dataKey="value"
               nameKey="name"
               cx="50%"
               cy="50%"
-              outerRadius={130}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-              labelLine
+              outerRadius={100}
+              isAnimationActive={false}
+              label={innerLabel}
+              labelLine={false}
             >
-              {pieData.map(entry => <Cell key={entry.name} fill={entry.color} />)}
+              {inner.map(e => <Cell key={e.name} fill={e.color} />)}
+            </Pie>
+            <Pie
+              data={outer}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={108}
+              outerRadius={142}
+              isAnimationActive={false}
+              label={outerLabel}
+              labelLine={false}
+            >
+              {outer.map(e => <Cell key={e.name} fill={e.color} />)}
             </Pie>
             <Tooltip content={<PieTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
           </PieChart>
         </ResponsiveContainer>
       );
