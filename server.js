@@ -50,17 +50,42 @@ const DEYE_ID  = 'dev_deye_2211137014';
 const CIAT_ID  = 'dev_clima_ciat';
 const BUCKET_MS = 10 * 60 * 1000;
 
-// Construye un filtro de rango temporal que funciona tanto si ts está
-// almacenado como Date (ISODate) como si está almacenado como string ISO.
-function tsRange(since, until) {
+// Offset UTC de Madrid: CEST (+2h) en verano, CET (+1h) en invierno.
+// servicio_clima.py almacena timestamps en hora local → necesitamos este offset
+// para comparar correctamente con los filtros UTC que manda el cliente.
+function madridOffsetMs(date) {
+  const y = date.getUTCFullYear();
+  const lastSunMarch = new Date(Date.UTC(y, 2, 31));
+  lastSunMarch.setUTCDate(31 - lastSunMarch.getUTCDay());
+  lastSunMarch.setUTCHours(1, 0, 0, 0);        // 01:00 UTC = 02:00 CET → empieza CEST
+  const lastSunOct = new Date(Date.UTC(y, 9, 31));
+  lastSunOct.setUTCDate(31 - lastSunOct.getUTCDay());
+  lastSunOct.setUTCHours(1, 0, 0, 0);          // 01:00 UTC = 03:00 CEST → vuelve CET
+  return date >= lastSunMarch && date < lastSunOct ? 7200000 : 3600000;
+}
+
+// Genera el string de hora local de Madrid equivalente a una fecha UTC.
+// Ejemplo: 2026-07-27T22:00:00Z → "2026-07-28T00:00:00" (CEST, UTC+2)
+function toMadridStr(utcDate) {
+  const loc = new Date(utcDate.getTime() + madridOffsetMs(utcDate));
+  const p = n => String(n).padStart(2, '0');
+  return `${loc.getUTCFullYear()}-${p(loc.getUTCMonth()+1)}-${p(loc.getUTCDate())}T${p(loc.getUTCHours())}:${p(loc.getUTCMinutes())}:${p(loc.getUTCSeconds())}`;
+}
+
+// Construye un filtro de rango temporal.
+// localStrings=true añade una tercera condición para datos guardados en hora local
+// de Madrid (caso de servicio_clima.py que no usa UTC).
+function tsRange(since, until, localStrings = false) {
   const sinceIso = since.toISOString();
   const untilIso = until.toISOString();
-  return {
-    $or: [
-      { ts: { $gte: since,    $lte: until    } },  // Date
-      { ts: { $gte: sinceIso, $lte: untilIso } },  // string ISO
-    ],
-  };
+  const conds = [
+    { ts: { $gte: since,    $lte: until    } },  // BSON Date
+    { ts: { $gte: sinceIso, $lte: untilIso } },  // string ISO UTC
+  ];
+  if (localStrings) {
+    conds.push({ ts: { $gte: toMadridStr(since), $lte: toMadridStr(until) } });
+  }
+  return { $or: conds };
 }
 
 // Expresión de agregación que convierte $ts (Date o string) a milisegundos UTC.
@@ -437,9 +462,10 @@ app.get('/api/data', async (req, res) => {
     const col = db.collection(colName);
 
     const deviceVal = device ? ({ deye: DEYE_ID, ciat: CIAT_ID }[device.toLowerCase()] ?? new RegExp(device, 'i')) : null;
+    const isCiat = source === 'power' || device?.toLowerCase() === 'ciat';
     const filter = deviceVal
-      ? { 'metadata.deviceId': deviceVal, ...tsRange(since, until) }
-      : tsRange(since, until);
+      ? { 'metadata.deviceId': deviceVal, ...tsRange(since, until, isCiat) }
+      : tsRange(since, until, isCiat);
 
     let docs;
     const ms = GRAN_MS[granularity];
