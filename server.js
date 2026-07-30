@@ -73,19 +73,23 @@ function toMadridStr(utcDate) {
 }
 
 // Construye un filtro de rango temporal.
-// localStrings=true añade una tercera condición para datos guardados en hora local
-// de Madrid (caso de servicio_clima.py que no usa UTC).
+// localStrings=true usa un rango de string ampliado que cubre tanto strings UTC (sin Z)
+// como strings en hora local de Madrid (caso de servicio_clima.py).
+//   - sinceStr: ISO UTC sin milisegundos/Z  → "2026-07-28T22:00:00"
+//     Cubre strings UTC sin Z desde el inicio del rango, y strings locales del día
+//     siguiente (el carácter de día "29" > "28" lo filtra correctamente).
+//   - untilStr: hora local de Madrid         → "2026-07-29T23:59:00"
+//     Cubre strings locales hasta el final del rango, y strings UTC sin Z hasta ~21:59.
+// Puede incluir ±2 h de datos extra en los extremos; se prefiere sobre perder datos.
 function tsRange(since, until, localStrings = false) {
   const sinceIso = since.toISOString();
   const untilIso = until.toISOString();
-  const conds = [
+  const sinceStr = localStrings ? sinceIso.slice(0, 19)  : sinceIso;
+  const untilStr = localStrings ? toMadridStr(until)     : untilIso;
+  return { $or: [
     { ts: { $gte: since,    $lte: until    } },  // BSON Date
-    { ts: { $gte: sinceIso, $lte: untilIso } },  // string ISO UTC
-  ];
-  if (localStrings) {
-    conds.push({ ts: { $gte: toMadridStr(since), $lte: toMadridStr(until) } });
-  }
-  return { $or: conds };
+    { ts: { $gte: sinceStr, $lte: untilStr } },  // string (UTC sin Z o local Madrid)
+  ]};
 }
 
 // Expresión de agregación que convierte $ts (Date o string) a milisegundos UTC.
