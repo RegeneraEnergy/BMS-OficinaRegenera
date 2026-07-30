@@ -504,8 +504,11 @@ app.get('/api/data', async (req, res) => {
       docs = await col.aggregate(pipeline, { allowDiskUse: true }).toArray();
     } else if (granularity === 'raw') {
       const rangeMs  = until.getTime() - since.getTime();
-      const sampleMs = Math.floor(rangeMs / 2_000);
-      if (sampleMs >= 60_000) {
+      // Con datos cada 30 s, un día completo produce 2880 docs.
+      // Bajamos el umbral a 30 s para que rangeMs/2000 ≥ 30 000 (≥ ~16,7 h)
+      // active el pipeline y evite el límite de 2000 docs y los duplicados por minuto.
+      const sampleMs = Math.max(30_000, Math.floor(rangeMs / 2_000));
+      if (sampleMs >= 30_000) {
         const tsMs = tsMsExpr();
         const pipeline = [
           { $match: filter },
@@ -519,7 +522,7 @@ app.get('/api/data', async (req, res) => {
         ];
         docs = await col.aggregate(pipeline, { allowDiskUse: true }).toArray();
       } else {
-        docs = await col.find(filter).sort({ ts: 1 }).limit(2_000).toArray();
+        docs = await col.find(filter).sort({ ts: 1 }).limit(5_000).toArray();
       }
     } else {
       docs = await col.find(filter).sort({ ts: 1 }).limit(50_000).toArray();
