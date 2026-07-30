@@ -31,10 +31,12 @@ export default function EnergyFlow({ data }) {
 
   const batteryCharging = batteryFlow > 0;
 
+  // tempImpulsionC < tempRetornoC → máquina enfriando; al revés → calentando
   const isCooling   = (clima?.tempImpulsionC ?? 0) <= (clima?.tempRetornoC ?? 999);
   const maxClimaKW  = isCooling ? MAX_KW_FRIO : MAX_KW_CALOR;
   const climaLoadPct = Math.min(100, Math.max(0, Math.round(climaConsumption / maxClimaKW * 100)));
-  const co2Level = interior.co2 > 1200 ? 'bad' : interior.co2 > 900 ? 'poor' : interior.co2 > 600 ? 'acceptable' : 'good';
+  const co2Val   = interior.co2;
+  const co2Level = co2Val != null ? (co2Val > 1200 ? 'bad' : co2Val > 900 ? 'poor' : co2Val > 600 ? 'acceptable' : 'good') : 'good';
   const co2Color  = co2Level === 'bad' ? '#ef4444' : co2Level === 'poor' ? '#f97316' : co2Level === 'acceptable' ? '#eab308' : '#22c55e';
   const generacion = pvGeneration + Math.max(0, -batteryFlow);
   const consumoOficina = pvGeneration + gridDemand + batteryFlow;
@@ -200,15 +202,17 @@ export default function EnergyFlow({ data }) {
             <div className="interior-overlay">
               <div className="interior-overlay-title">🏢 Interior Oficina</div>
               <div className="interior-overlay-vals">
-                <span>🌡️ <strong>{interior.temperature}°C</strong></span>
-                <span style={{ color: co2Color }}>🌿 <strong>{interior.co2} ppm</strong></span>
+                <span>🌡️ <strong>{interior.temperature != null ? `${interior.temperature}°C` : '—'}</strong></span>
+                {co2Val != null && <span style={{ color: co2Color }}>🌿 <strong>{co2Val} ppm</strong></span>}
               </div>
-              <div className="interior-overlay-air">
-                <span className="air-dot" style={{ background: co2Color }} />
-                Calidad del aire: <strong style={{ color: co2Color }}>
-                  {co2Level === 'good' ? 'Buena' : co2Level === 'acceptable' ? 'Aceptable' : co2Level === 'poor' ? 'Deficiente' : 'Mala'}
-                </strong>
-              </div>
+              {co2Val != null && (
+                <div className="interior-overlay-air">
+                  <span className="air-dot" style={{ background: co2Color }} />
+                  Calidad del aire: <strong style={{ color: co2Color }}>
+                    {co2Level === 'good' ? 'Buena' : co2Level === 'acceptable' ? 'Aceptable' : co2Level === 'poor' ? 'Deficiente' : 'Mala'}
+                  </strong>
+                </div>
+              )}
             </div>
 
             <img
@@ -285,30 +289,32 @@ export default function EnergyFlow({ data }) {
           </div>
         </div>
 
-        {/* ⑥ Exterior conditions — top-right */}
-        <div className="conditions-card exterior-card" style={{ top: '6%', right: '2%' }}>
-          <div className="conditions-title">
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-              <circle cx="7.5" cy="7.5" r="3" fill="#fbbf24" />
-              {[0,60,120,180,240,300].map(a => (
-                <line key={a} x1="7.5" y1="7.5"
-                  x2={7.5 + 5.5 * Math.cos(a * Math.PI / 180)}
-                  y2={7.5 + 5.5 * Math.sin(a * Math.PI / 180)}
-                  stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" />
-              ))}
-            </svg>
-            Condiciones Exteriores
-          </div>
-          <div className="conditions-grid">
-            <div className="cond-item">
-              <span className="cond-icon">🌡️</span>
-              <div>
-                <div className="cond-value">{exterior.temperature}°C</div>
-                <div className="cond-label">Temperatura</div>
+        {/* ⑥ Exterior conditions — top-right (only shown when data available) */}
+        {exterior.temperature != null && (
+          <div className="conditions-card exterior-card" style={{ top: '6%', right: '2%' }}>
+            <div className="conditions-title">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <circle cx="7.5" cy="7.5" r="3" fill="#fbbf24" />
+                {[0,60,120,180,240,300].map(a => (
+                  <line key={a} x1="7.5" y1="7.5"
+                    x2={7.5 + 5.5 * Math.cos(a * Math.PI / 180)}
+                    y2={7.5 + 5.5 * Math.sin(a * Math.PI / 180)}
+                    stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" />
+                ))}
+              </svg>
+              Condiciones Exteriores
+            </div>
+            <div className="conditions-grid">
+              <div className="cond-item">
+                <span className="cond-icon">🌡️</span>
+                <div>
+                  <div className="cond-value">{exterior.temperature}°C</div>
+                  <div className="cond-label">Temperatura</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* ⑦ Power balance — bottom */}
         <div className="power-balance" style={{ bottom: '2%', left: '50%', transform: 'translateX(-50%)' }}>
