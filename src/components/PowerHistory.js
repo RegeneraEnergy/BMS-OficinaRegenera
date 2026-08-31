@@ -36,6 +36,12 @@ const GRANULARITIES = [
   { id: '1y',  label: 'Anual' },
 ];
 
+// Granularidades en las que el gráfico muestra energía acumulada (kWh) en
+// lugar de potencia (kW): el backend solo devuelve un muestreo puntual por
+// día/mes/año para estas granularidades, así que agregamos nosotros mismos
+// a partir de datos horarios (ver ENERGY_GRANULARITIES abajo).
+const ENERGY_GRANULARITIES = new Set(['1d', '1mo', '1y']);
+
 /* ── Helpers ───────────────────────────────────────────────────────────────── */
 function toLocalInput(date) {
   const d = new Date(date);
@@ -86,6 +92,38 @@ function mergeDatasets(deyeRows, ciatRows) {
   return [...map.values()].sort((a, b) => a.datetime.localeCompare(b.datetime));
 }
 
+function energyBucketKey(isoStr, gran) {
+  const d = new Date(isoStr);
+  const pad = n => String(n).padStart(2, '0');
+  if (gran === '1d')  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+  if (gran === '1mo') return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}`;
+  return `${d.getUTCFullYear()}`; // '1y'
+}
+
+function energyBucketToIso(key, gran) {
+  if (gran === '1d')  return new Date(key + 'T00:00:00.000Z').toISOString();
+  if (gran === '1mo') return new Date(key + '-01T00:00:00.000Z').toISOString();
+  return new Date(key + '-01-01T00:00:00.000Z').toISOString(); // '1y'
+}
+
+// Agrega filas horarias (kW) en energía acumulada (kWh) por día/mes/año.
+// Con granularidad 1h cada punto representa 1 hora, así que la suma de
+// los valores en kW equivale directamente a kWh para el periodo.
+function aggregateEnergy(hourlyRows, gran) {
+  const buckets = new Map();
+  for (const row of hourlyRows) {
+    const key = energyBucketKey(row.datetime, gran);
+    if (!buckets.has(key)) buckets.set(key, { datetime: energyBucketToIso(key, gran) });
+    const b = buckets.get(key);
+    for (const s of SERIES) {
+      const v = row[s.key];
+      if (v == null) continue;
+      b[s.key] = +((b[s.key] ?? 0) + v).toFixed(3);
+    }
+  }
+  return [...buckets.values()].sort((a, b) => a.datetime.localeCompare(b.datetime));
+}
+
 // Con granularidad 1h cada punto representa 1 hora, así que la suma de
 // los valores en kW equivale directamente a kWh para el periodo completo.
 function computeNestedPie(data) {
@@ -121,7 +159,7 @@ function computeNestedPie(data) {
 }
 
 /* ── Tooltip ───────────────────────────────────────────────────────────────── */
-function PowerTooltip({ active, payload, label }) {
+function PowerTooltip({ active, payload, label, unit = 'kW' }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="ph-tooltip">
@@ -129,7 +167,7 @@ function PowerTooltip({ active, payload, label }) {
       {payload.map(p => (
         <div key={p.dataKey} className="ph-tooltip-row" style={{ color: p.color }}>
           <span>{p.name}:</span>
-          <span><b>{p.value != null ? p.value : '—'}</b> kW</span>
+          <span><b>{p.value != null ? p.value : '—'}</b> {unit}</span>
         </div>
       ))}
     </div>
@@ -149,9 +187,9 @@ function PieTooltip({ active, payload }) {
 }
 
 /* ── CSV export ────────────────────────────────────────────────────────────── */
-function exportCSV(data, from, to) {
+function exportCSV(data, from, to, unit = 'kW') {
   if (!data.length) return;
-  const labelRow = ['Fecha/Hora', ...SERIES.map(s => `${s.label} (kW)`)];
+  const labelRow = ['Fecha/Hora', ...SERIES.map(s => `${s.label} (${unit})`)];
   const rows = data.map(row => [
     `"${new Date(row.datetime).toLocaleString('es-ES')}"`,
     ...SERIES.map(s => row[s.key] != null ? row[s.key] : ''),
@@ -191,7 +229,11 @@ export default function PowerHistory() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), granularity: gran });
+      // Diaria/Mensual/Anual: el backend solo muestrea un punto por periodo,
+      // así que pedimos datos horarios y acumulamos nosotros mismos la energía.
+      const energyMode = ENERGY_GRANULARITIES.has(gran);
+      const fetchGran = energyMode ? '1h' : gran;
+      const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), granularity: fetchGran });
       const [deyeRes, ciatRes] = await Promise.all([
         apiFetch(`/api/data?source=readings&device=deye&${params}`),
         apiFetch(`/api/data?source=readings&device=ciat&${params}`),
@@ -200,8 +242,9 @@ export default function PowerHistory() {
       if (!ciatRes.ok) throw new Error(`CIAT: HTTP ${ciatRes.status}`);
       const [deye, ciat] = await Promise.all([deyeRes.json(), ciatRes.json()]);
       const merged = mergeDatasets(deye, ciat);
-      setData(merged);
-      setRowCount(merged.length);
+      const final  = energyMode ? aggregateEnergy(merged, gran) : merged;
+      setData(final);
+      setRowCount(final.length);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -253,6 +296,8 @@ export default function PowerHistory() {
 
   const activeSeries = SERIES.filter(s => active.has(s.key));
   const nestedPie    = useMemo(() => computeNestedPie(data), [data]);
+  const energyMode   = ENERGY_GRANULARITIES.has(granularity);
+  const powerUnit    = energyMode ? 'kWh' : 'kW';
 
   /* ── Renderizado del gráfico ─────────────────────────────────────────────── */
   const commonXAxis = (
@@ -266,12 +311,12 @@ export default function PowerHistory() {
   const commonYAxis = (
     <YAxis
       tick={{ fontSize: 11, fill: '#64748b' }}
-      tickFormatter={v => `${v} kW`}
+      tickFormatter={v => `${v} ${powerUnit}`}
       width={70}
     />
   );
   const commonGrid    = <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />;
-  const commonTooltip = <Tooltip content={<PowerTooltip />} />;
+  const commonTooltip = <Tooltip content={<PowerTooltip unit={powerUnit} />} />;
   const commonLegend  = <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />;
 
   function renderChart() {
@@ -453,7 +498,7 @@ export default function PowerHistory() {
           {/* Descarga CSV */}
           <button
             className="ph-download-btn"
-            onClick={() => exportCSV(data, appliedFrom, appliedTo)}
+            onClick={() => exportCSV(data, appliedFrom, appliedTo, powerUnit)}
             disabled={!data.length}
             title="Descargar datos como CSV"
           >
