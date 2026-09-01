@@ -50,6 +50,37 @@ const DEYE_ID  = 'dev_deye_2211137014';
 const CIAT_ID  = 'dev_clima_ciat';
 const BUCKET_MS = 10 * 60 * 1000;
 
+// Campos CIAT a mostrar en el selector de variables, independientemente de
+// su valor. Mapeo dirección Modbus → campo, confirmado contra la tabla del
+// fabricante (columna "Nombre en BBDD") y las constantes *_ADDRESS de
+// servicio_clima.py. Direcciones solicitadas sin variable implementada en el
+// script (no se leen del equipo CIAT, no pueden aparecer): 60 (habOnOffHor),
+// 117 (compresorRec), 120 (arrForzado), 255 (posicionEEVC1Pct),
+// 256 (posicionEEVC2Pct), 5206 (velocidadFan2Rpm).
+const CIAT_ALLOWED_FIELDS = new Set([
+  // Digitales (coils) — 16, 17, 76, 77, 188, 330, 331, 332, 333
+  'clima.compresor1', 'clima.compresor2', 'clima.compresor1_2', 'clima.compresor2_2',
+  'clima.notSyson1',
+  'clima.disableComp1', 'clima.disableComp1_2', 'clima.disableComp2', 'clima.disableComp2_2',
+  // Analógicas — 1,2,3,4,7,8,9,14,39,123,124,131,132,133,140,201,204,205,206,207,
+  // 239,240,251,252,253,254,267,315,321,326,327,328,330,331
+  // (330 y 331 tienen doble variable: digital de arriba + analógica de energía aquí)
+  'clima.tempRetornoC', 'clima.tempExteriorC', 'clima.presionHPC1Bar', 'clima.presionHPC2Bar',
+  'clima.tempImpulsionC', 'clima.tempMezclaC', 'clima.tempAmbienteC', 'clima.tempTcoC',
+  'clima.zonaMuertaTempC', 'clima.tempCalcHPC1C', 'clima.tempCalcHPC2C',
+  'clima.corrienteL1A', 'clima.corrienteL2A', 'clima.corrienteL3A', 'clima.potenciaTotalkW',
+  'clima.caudalRenovacionM3h', 'clima.presionLPC1Bar', 'clima.presionLPC2Bar',
+  'clima.tempCalcLPC1C', 'clima.tempCalcLPC2C', 'clima.potTermicakW', 'clima.eerCop',
+  'clima.tempAspiracionC1C', 'clima.tempAspiracionC2C', 'clima.sobrecalentC1C', 'clima.sobrecalentC2C',
+  'clima.setTempDisplayC', 'clima.potReactivaTotalkVAr', 'clima.seer',
+  'clima.thEnergyFrioMWh', 'clima.elecEnergyImpMWh', 'clima.elecEnergyRetMWh',
+  'clima.elecEnergyFansMWh', 'clima.elecEnergyFrioMWh',
+  // Enteras 5000+ — 5004, 5174, 5176, 5178, 5199, 5200, 5205
+  // (5176/5178 se leen en el script como 5175/5177 — mismo dato, ver comentario arriba)
+  'clima.co2Zona1Ppm', 'clima.factorPotencia', 'clima.energiaReactivakVArh', 'clima.energiakWh',
+  'clima.caudalVintMedidoM3h', 'clima.velocidadVintRpm', 'clima.caudalVretMedidoM3h',
+]);
+
 // Offset UTC de Madrid: CEST (+2h) en verano, CET (+1h) en invierno.
 // servicio_clima.py almacena timestamps en hora local → necesitamos este offset
 // para comparar correctamente con los filtros UTC que manda el cliente.
@@ -390,7 +421,14 @@ app.get('/api/fields', async (req, res) => {
       }
     }
 
-    res.json([...keys].sort());
+    // CIAT: restringir al whitelist de variables solicitado (por dirección
+    // Modbus), independientemente de su valor.
+    let result = [...keys];
+    if (device && device.toLowerCase() === 'ciat') {
+      result = result.filter(k => CIAT_ALLOWED_FIELDS.has(k));
+    }
+
+    res.json(result.sort());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
