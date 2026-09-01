@@ -378,20 +378,19 @@ app.get('/api/fields', async (req, res) => {
       samples = await col.find(deviceFilter).sort({ ts: -1 }).limit(30).toArray();
     }
 
-    // Recoger campos y detectar cuáles tienen algún valor distinto de 0/false
-    const hasNonZero = {};
+    // Recoger todos los campos numéricos/booleanos presentes en la muestra
+    // (sin filtrar por valor: una variable en 0/false sigue siendo válida,
+    // p.ej. un compresor apagado).
+    const keys = new Set();
     for (const doc of samples) {
       const flat = flattenDoc(getMetricsObj(doc));
       for (const [k, v] of Object.entries(flat)) {
         if (typeof v !== 'number' && typeof v !== 'boolean') continue;
-        if (!hasNonZero[k]) hasNonZero[k] = false;
-        if (v !== 0 && v !== false) hasNonZero[k] = true;
+        keys.add(k);
       }
     }
 
-    // Solo devolver campos que tienen al menos un valor no-nulo en la muestra
-    const activeKeys = Object.keys(hasNonZero).filter(k => hasNonZero[k]);
-    res.json(activeKeys.sort());
+    res.json([...keys].sort());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
