@@ -254,12 +254,16 @@ app.get('/api/live', async (req, res) => {
   try {
     const col = db.collection('readings');
 
-    // Acotar a última hora: evita scan completo (no hay compound index sobre ruta anidada)
-    const recentTs = new Date(Date.now() - 60 * 60 * 1000);
+    // Acotar a última hora para reducir RUs en Cosmos DB.
+    // DEYE y readings_power almacenan ts como BSON Date → filtro Date directo.
+    // CIAT almacena ts como string en hora local de Madrid → usar tsRange(localStrings:true)
+    // para generar un $or que cubre ambos formatos (evita que findOne devuelva null).
+    const recentTs  = new Date(Date.now() - 60 * 60 * 1000);
+    const ciatRange = tsRange(recentTs, new Date(), true); // $or: [{Date},{string Madrid}]
     const [deye, ciat, power] = await Promise.all([
       col.findOne({ 'metadata.deviceId': DEYE_ID, ts: { $gte: recentTs } }, { sort: { ts: -1 } }),
-      col.findOne({ 'metadata.deviceId': CIAT_ID, ts: { $gte: recentTs } }, { sort: { ts: -1 } }),
-      db.collection('readings_power').findOne({ ts: { $gte: recentTs } }, { sort: { ts: -1 } }),
+      col.findOne({ 'metadata.deviceId': CIAT_ID, ...ciatRange },           { sort: { ts: -1 } }),
+      db.collection('readings_power').findOne({ ts: { $gte: recentTs } },   { sort: { ts: -1 } }),
     ]);
 
     const dm = deye?.metrics ?? {};
