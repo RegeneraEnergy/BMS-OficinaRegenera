@@ -9,31 +9,28 @@ const DEFAULT_CONFIG = {
   compressors: [false, false, false, false],
 };
 
-export default function HVACControl({ onClose }) {
+// maquinaArrancada: estado real del sensor, provisto por el padre via liveData
+export default function HVACControl({ onClose, maquinaArrancada }) {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // null = sin dato aún, true = arrancada, false = parada
-  const [maquinaReal, setMaquinaReal] = useState(null);
+  const [maquinaReal, setMaquinaReal] = useState(maquinaArrancada ?? null);
+
+  // Sincronizar el indicador con las actualizaciones del padre (cada 60s)
+  useEffect(() => {
+    if (maquinaArrancada !== undefined) setMaquinaReal(maquinaArrancada);
+  }, [maquinaArrancada]);
 
   const load = useCallback(async () => {
     try {
-      // Cargamos config y estado real en paralelo.
-      // hvacConfig (servidor) puede tener maquina:false tras un reinicio o si la máquina
-      // fue encendida por un horario automático (el cron no actualiza hvacConfig).
-      // Por eso usamos el estado real de la BD como fuente de verdad para config.maquina.
-      const [configRes, liveRes] = await Promise.all([
-        apiFetch('/api/control/hvac'),
-        apiFetch('/api/live'),
-      ]);
+      // Solo necesitamos la config del servidor; el estado real viene del padre via prop
+      const configRes = await apiFetch('/api/control/hvac');
       const data = configRes.ok ? await configRes.json() : { ...DEFAULT_CONFIG };
-      if (liveRes.ok) {
-        const live = await liveRes.json();
-        if (live.maquinaArrancada !== undefined) {
-          data.maquina = live.maquinaArrancada;
-          setMaquinaReal(live.maquinaArrancada);
-        }
+      // Si el padre ya conoce el estado real, usarlo como fuente de verdad para config.maquina
+      if (maquinaArrancada !== undefined && maquinaArrancada !== null) {
+        data.maquina = maquinaArrancada;
       }
       setConfig(data);
     } catch (_e) {
@@ -41,25 +38,10 @@ export default function HVACControl({ onClose }) {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Refresco periódico del estado real (solo para el indicador, no sobreescribe config)
-  const loadEstadoReal = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/live');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.maquinaArrancada !== undefined) setMaquinaReal(data.maquinaArrancada);
-      }
-    } catch (_e) {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    const id = setInterval(loadEstadoReal, 10_000);
-    return () => clearInterval(id);
-  }, [loadEstadoReal]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };

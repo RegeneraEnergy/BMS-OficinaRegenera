@@ -11,7 +11,7 @@ import PowerHistory from './components/PowerHistory';
 import { generateRealTimeData } from './data/mockData';
 import apiFetch from './apiFetch';
 
-const REFRESH_INTERVAL = 10000; // 10 segundos
+const REFRESH_INTERVAL = 60000; // 60 segundos
 
 async function fetchLive() {
   const res = await apiFetch('/api/live');
@@ -97,14 +97,14 @@ function Dashboard({ onLogout, isAdmin, canControl }) {
         <StatsBar data={liveData} />
         <EnergyFlow data={liveData} />
         <PowerHistory />
-        <HistoricalData canControl={canControl} />
+        <HistoricalData canControl={canControl} liveData={liveData} />
       </main>
       <footer className="footer">
         <span>Regenera Levante © {new Date().getFullYear()}</span>
         <span className="footer-sep">·</span>
         <span>Plataforma de Monitorización Energética</span>
         <span className="footer-sep">·</span>
-        <span className="footer-update">Actualización automática cada {REFRESH_INTERVAL / 1000}s</span>
+        <span className="footer-update">Actualización automática cada {REFRESH_INTERVAL >= 60000 ? `${REFRESH_INTERVAL / 60000} min` : `${REFRESH_INTERVAL / 1000}s`}</span>
       </footer>
     </div>
   );

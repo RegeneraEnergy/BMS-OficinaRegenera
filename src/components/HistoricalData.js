@@ -193,7 +193,7 @@ function downloadCSV(data, selectedKeys, filename) {
 /* ══════════════════════════════════════════════════════════════════════════════
    Componente principal
 ══════════════════════════════════════════════════════════════════════════════ */
-export default function HistoricalData({ canControl = true }) {
+export default function HistoricalData({ canControl = true, liveData }) {
   const now = new Date();
   const defaultFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -682,7 +682,7 @@ export default function HistoricalData({ canControl = true }) {
         </div>
       )}
 
-      {showHVACControl     && <HVACControl      onClose={() => setShowHVACControl(false)} />}
+      {showHVACControl     && <HVACControl      onClose={() => setShowHVACControl(false)} maquinaArrancada={liveData?.maquinaArrancada} />}
       {showScheduleManager && <ScheduleManager  onClose={() => setShowScheduleManager(false)} />}
     </div>
   );

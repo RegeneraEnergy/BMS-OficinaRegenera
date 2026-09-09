@@ -254,10 +254,12 @@ app.get('/api/live', async (req, res) => {
   try {
     const col = db.collection('readings');
 
+    // Acotar a última hora: evita scan completo (no hay compound index sobre ruta anidada)
+    const recentTs = new Date(Date.now() - 60 * 60 * 1000);
     const [deye, ciat, power] = await Promise.all([
-      col.findOne({ 'metadata.deviceId': DEYE_ID }, { sort: { ts: -1 } }),
-      col.findOne({ 'metadata.deviceId': CIAT_ID }, { sort: { ts: -1 } }),
-      db.collection('readings_power').findOne({}, { sort: { ts: -1 } }),
+      col.findOne({ 'metadata.deviceId': DEYE_ID, ts: { $gte: recentTs } }, { sort: { ts: -1 } }),
+      col.findOne({ 'metadata.deviceId': CIAT_ID, ts: { $gte: recentTs } }, { sort: { ts: -1 } }),
+      db.collection('readings_power').findOne({ ts: { $gte: recentTs } }, { sort: { ts: -1 } }),
     ]);
 
     const dm = deye?.metrics ?? {};
