@@ -36,7 +36,7 @@ export default function StatsBar({ data }) {
       }
     };
     load();
-    const id = setInterval(load, 2 * 60 * 1000); // cada 2 min
+    const id = setInterval(load, 15 * 60 * 1000); // cada 15 min (reducir RU Cosmos DB)
     return () => clearInterval(id);
   }, []);
 

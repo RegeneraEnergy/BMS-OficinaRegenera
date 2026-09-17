@@ -49,6 +49,8 @@ const TIMEOUT   = 8000; // ms por intento
 const DEYE_ID  = 'dev_deye_2211137014';
 const CIAT_ID  = 'dev_clima_ciat';
 const BUCKET_MS = 10 * 60 * 1000;
+const TOTALS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — reduce queries a Cosmos DB
+const totalsCache = new Map();              // key: 'day'|'week' → { ts, data }
 
 // Campos CIAT a mostrar en el selector de variables, independientemente de
 // su valor. Mapeo dirección Modbus → campo, confirmado contra la tabla del
@@ -603,39 +605,52 @@ function madridStartOfWeek(date = new Date()) {
 }
 
 // ── Cálculo de totales para un intervalo ──────────────────────────────────────
+// Usa aggregation en lugar de find().toArray() para reducir documentos transferidos:
+// - 2 pipelines en paralelo → 2 RU en lugar de 3 find completos
+// - Agrupa por cubo de 10 min en BD, transfiere ~144 filas/día en vez de ~2880
 async function computeTotals(since, until) {
-  const tr = tsRange(since, until);
-  const [deyeDocs, powerDocs1, powerDocs2] = await Promise.all([
-    db.collection('readings').find({ 'metadata.deviceId': DEYE_ID, ...tr }).sort({ ts: 1 }).toArray(),
-    db.collection('reading_power').find(tr).sort({ ts: 1 }).toArray(),
-    db.collection('readings_power').find(tr).sort({ ts: 1 }).toArray(),
+  const tr   = tsRange(since, until);
+  const tsMs = tsMsExpr();
+  const H    = 10 / 60;
+
+  const [deyeResult, powerResult] = await Promise.all([
+    db.collection('readings').aggregate([
+      { $match: { 'metadata.deviceId': DEYE_ID, ...tr } },
+      { $group: {
+          _id:       { $subtract: [tsMs, { $mod: [tsMs, BUCKET_MS] }] },
+          pvSolarW:  { $first: '$metrics.pv.totalSolarW'    },
+          inverterW: { $first: '$metrics.inverter.totalW'   },
+          gridW:     { $first: '$metrics.grid.totalW'       },
+          batteryW:  { $first: '$metrics.battery.powerW'    },
+      }},
+      { $group: {
+          _id:         null,
+          pvSolarWSum: { $sum: { $ifNull: ['$pvSolarW', { $ifNull: ['$inverterW', 0] }] } },
+          gridWSum:    { $sum: { $ifNull: ['$gridW',    0] } },
+          batteryWSum: { $sum: { $ifNull: ['$batteryW', 0] } },
+      }},
+    ], { allowDiskUse: true }).toArray(),
+
+    db.collection('readings_power').aggregate([
+      { $match: tr },
+      { $group: {
+          _id:     { $subtract: [tsMs, { $mod: [tsMs, BUCKET_MS] }] },
+          climaKw: { $first: '$metrics.clima.potenciaTotalkW' },
+      }},
+      { $group: {
+          _id:        null,
+          climaKwSum: { $sum: { $ifNull: ['$climaKw', 0] } },
+      }},
+    ], { allowDiskUse: true }).toArray(),
   ]);
 
-  const powerDocs = powerDocs1.length >= powerDocs2.length ? powerDocs1 : powerDocs2;
+  const deye  = deyeResult[0]  ?? {};
+  const power = powerResult[0] ?? {};
 
-  const deyeMap  = new Map();
-  const powerMap = new Map();
-  for (const doc of deyeDocs) {
-    const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
-    deyeMap.set(key, doc);
-  }
-  for (const doc of powerDocs) {
-    const key = Math.floor(new Date(doc.ts).getTime() / BUCKET_MS) * BUCKET_MS;
-    powerMap.set(key, doc);
-  }
-
-  const H = 10 / 60;
-  let pvGen = 0, grid = 0, bat = 0, clima = 0;
-
-  for (const doc of deyeMap.values()) {
-    const dm = doc.metrics ?? {};
-    pvGen += (dm.pv?.totalSolarW ?? dm.inverter?.totalW ?? 0) / 1000 * H;
-    grid  += (dm.grid?.totalW    ?? 0) / 1000 * H;
-    bat   += -(dm.battery?.powerW ?? 0) / 1000 * H;
-  }
-  for (const doc of powerMap.values()) {
-    clima += (doc.metrics?.clima?.potenciaTotalkW ?? 0) * H;
-  }
+  const pvGen =  (deye.pvSolarWSum  ?? 0) / 1000 * H;
+  const grid  =  (deye.gridWSum     ?? 0) / 1000 * H;
+  const bat   = -(deye.batteryWSum  ?? 0) / 1000 * H;
+  const clima  = (power.climaKwSum  ?? 0) * H;
 
   const generacion     = pvGen + Math.max(0, -bat);
   const consumoOficina = pvGen + grid + bat;
@@ -658,6 +673,12 @@ async function computeTotals(since, until) {
 app.get('/api/totals', async (req, res) => {
   try {
     const { period = 'day' } = req.query;
+
+    const cached = totalsCache.get(period);
+    if (cached && Date.now() - cached.ts < TOTALS_CACHE_TTL_MS) {
+      return res.json(cached.data);
+    }
+
     const now = new Date();
 
     let since, prevSince;
@@ -669,8 +690,8 @@ app.get('/api/totals', async (req, res) => {
       prevSince = new Date(since.getTime() - 86_400_000);
     }
 
-    const elapsed   = now.getTime() - since.getTime();        // tiempo transcurrido en el período actual
-    const prevUntil = new Date(prevSince.getTime() + elapsed); // misma hora relativa en el período anterior
+    const elapsed   = now.getTime() - since.getTime();
+    const prevUntil = new Date(prevSince.getTime() + elapsed);
 
     const [current, prev] = await Promise.all([
       computeTotals(since, now),
@@ -678,7 +699,9 @@ app.get('/api/totals', async (req, res) => {
     ]);
 
     console.log(`[totals] period=${period} since=${since.toISOString()} cur.consumo=${current.consumoOficina} prev.consumo=${prev.consumoOficina}`);
-    res.json({ ...current, prev });
+    const data = { ...current, prev };
+    totalsCache.set(period, { ts: Date.now(), data });
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
