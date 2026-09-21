@@ -49,7 +49,7 @@ const TIMEOUT   = 8000; // ms por intento
 const DEYE_ID  = 'dev_deye_2211137014';
 const CIAT_ID  = 'dev_clima_ciat';
 const BUCKET_MS = 10 * 60 * 1000;
-const TOTALS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — reduce queries a Cosmos DB
+const TOTALS_CACHE_TTL_MS = 31 * 60 * 1000; // 31 min — mayor que StatsBar (30 min), garantiza cache hit en cada 2.º poll
 const totalsCache = new Map();              // key: 'day'|'week' → { ts, data }
 
 // Devuelve el RequestCharge (RU) de la última operación Cosmos DB.
@@ -160,6 +160,12 @@ function tsMsExpr() {
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') && req.path !== '/api/health') {
+    console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.path}${req.query.period ? '?period='+req.query.period : ''}`);
+  }
+  next();
+});
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -639,9 +645,10 @@ async function computeTotals(since, until) {
   const tsMs = tsMsExpr();
   const H    = 10 / 60;
 
+  // DEYE almacena ts como BSON Date → filtro directo sin $or (más barato en Cosmos DB)
   const [deyeResult, powerResult] = await Promise.all([
     db.collection('readings').aggregate([
-      { $match: { 'metadata.deviceId': DEYE_ID, ...tr } },
+      { $match: { 'metadata.deviceId': DEYE_ID, ts: { $gte: since, $lte: until } } },
       { $group: {
           _id:       { $subtract: [tsMs, { $mod: [tsMs, BUCKET_MS] }] },
           pvSolarW:  { $first: '$metrics.pv.totalSolarW'    },
@@ -655,7 +662,7 @@ async function computeTotals(since, until) {
           gridWSum:    { $sum: { $ifNull: ['$gridW',    0] } },
           batteryWSum: { $sum: { $ifNull: ['$batteryW', 0] } },
       }},
-    ], { allowDiskUse: true }).toArray(),
+    ]).toArray(),
 
     db.collection('readings_power').aggregate([
       { $match: tr },
@@ -667,7 +674,7 @@ async function computeTotals(since, until) {
           _id:        null,
           climaKwSum: { $sum: { $ifNull: ['$climaKw', 0] } },
       }},
-    ], { allowDiskUse: true }).toArray(),
+    ]).toArray(),
   ]);
 
   const deye  = deyeResult[0]  ?? {};

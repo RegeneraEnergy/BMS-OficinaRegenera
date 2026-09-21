@@ -36,7 +36,7 @@ export default function StatsBar({ data }) {
       }
     };
     load();
-    const id = setInterval(load, 15 * 60 * 1000); // cada 15 min (reducir RU Cosmos DB)
+    const id = setInterval(load, 30 * 60 * 1000); // cada 30 min (cache TTL=31 min → hit garantizado)
     return () => clearInterval(id);
   }, []);
 
