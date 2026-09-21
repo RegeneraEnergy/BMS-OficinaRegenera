@@ -52,6 +52,29 @@ const BUCKET_MS = 10 * 60 * 1000;
 const TOTALS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — reduce queries a Cosmos DB
 const totalsCache = new Map();              // key: 'day'|'week' → { ts, data }
 
+// Devuelve el RequestCharge (RU) de la última operación Cosmos DB.
+// Solo funciona contra Cosmos DB (ignora errores silenciosamente).
+async function lastRU() {
+  try {
+    const s = await db.command({ getLastRequestStatistics: 1 });
+    return +(s.RequestCharge ?? 0);
+  } catch { return 0; }
+}
+// Acumulador de RU por endpoint para loguear cada 5 min
+const ruAccum = {};
+function trackRU(label, ru) {
+  if (!ru) return;
+  ruAccum[label] = (ruAccum[label] ?? 0) + ru;
+}
+setInterval(() => {
+  const entries = Object.entries(ruAccum);
+  if (!entries.length) return;
+  const total = entries.reduce((s, [, v]) => s + v, 0);
+  const detail = entries.map(([k, v]) => `${k}=${v.toFixed(0)}`).join(' ');
+  console.log(`[RU/5min] total=${total.toFixed(0)} | ${detail}`);
+  for (const k of Object.keys(ruAccum)) ruAccum[k] = 0;
+}, 5 * 60 * 1000);
+
 // Campos CIAT a mostrar en el selector de variables, independientemente de
 // su valor. Mapeo dirección Modbus → campo, confirmado contra la tabla del
 // fabricante (columna "Nombre en BBDD") y las constantes *_ADDRESS de
@@ -267,6 +290,7 @@ app.get('/api/live', async (req, res) => {
       col.findOne({ 'metadata.deviceId': CIAT_ID, ...ciatRange },           { sort: { ts: -1 } }),
       db.collection('readings_power').findOne({ ts: { $gte: recentTs } },   { sort: { ts: -1 } }),
     ]);
+    trackRU('live', await lastRU());
 
     const dm = deye?.metrics ?? {};
     const cm = ciat?.metrics?.clima ?? {};
@@ -312,6 +336,7 @@ app.get('/api/historical', async (req, res) => {
       .sort({ ts: 1 })
       .toArray();
 
+    trackRU('historical', await lastRU());
     console.log(`/api/historical ${since.toISOString()} → ${until.toISOString()}: ${docs.length} docs`);
 
     const deyeMap = new Map();
@@ -573,6 +598,7 @@ app.get('/api/data', async (req, res) => {
       docs = await col.find(filter).sort({ ts: 1 }).limit(50_000).toArray();
     }
 
+    trackRU(`data_${source}_${granularity}`, await lastRU());
     console.log(`/api/data source=${source} device=${device ?? '-'} granularity=${granularity} → ${docs.length} docs`);
     res.json(agregateData(docs, granularity));
   } catch (err) {
@@ -701,6 +727,7 @@ app.get('/api/totals', async (req, res) => {
     console.log(`[totals] period=${period} since=${since.toISOString()} cur.consumo=${current.consumoOficina} prev.consumo=${prev.consumoOficina}`);
     const data = { ...current, prev };
     totalsCache.set(period, { ts: Date.now(), data });
+    trackRU(`totals_${period}`, await lastRU());
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
