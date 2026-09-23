@@ -78,8 +78,22 @@ function Dashboard({ onLogout, isAdmin, canControl }) {
 
   useEffect(() => {
     refreshLive();
-    const interval = setInterval(refreshLive, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
+    let interval = setInterval(refreshLive, REFRESH_INTERVAL);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        clearInterval(interval);
+      } else {
+        refreshLive();
+        interval = setInterval(refreshLive, REFRESH_INTERVAL);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [refreshLive]);
 
   return (

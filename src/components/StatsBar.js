@@ -36,8 +36,22 @@ export default function StatsBar({ data }) {
       }
     };
     load();
-    const id = setInterval(load, 30 * 60 * 1000); // cada 30 min (cache TTL=31 min → hit garantizado)
-    return () => clearInterval(id);
+    let id = setInterval(load, 30 * 60 * 1000); // cada 30 min (cache TTL=31 min → hit garantizado)
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        clearInterval(id);
+      } else {
+        load();
+        id = setInterval(load, 30 * 60 * 1000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   if (!data) return null;
