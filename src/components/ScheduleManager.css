@@ -570,3 +570,134 @@
   color: #d97706;
   font-weight: 600;
 }
+
+/* ── Badge festivos en tarjeta ───────────────────────────────────────────── */
+.sch-tipo-badge.festivos { background: #fef3c7; color: #92400e; }
+
+/* ── Sección festivos en formulario ──────────────────────────────────────── */
+.sch-festivos-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sch-festivos-panel {
+  border: 1.5px solid #fde68a;
+  border-radius: 10px;
+  background: #fffbeb;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: sch-fade 0.15s ease;
+}
+
+/* ── Chips de fechas seleccionadas ───────────────────────────────────────── */
+.sch-festivos-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sch-festivo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fef9c3;
+  border: 1px solid #fde047;
+  color: #713f12;
+  border-radius: 20px;
+  padding: 3px 8px 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sch-festivo-chip-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #a16207;
+  font-size: 0.65rem;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.1s;
+}
+.sch-festivo-chip-del:hover { color: #dc2626; }
+
+/* ── Calendario ──────────────────────────────────────────────────────────── */
+.sch-cal {
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #fde68a;
+  overflow: hidden;
+  user-select: none;
+}
+
+.sch-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fde68a;
+}
+
+.sch-cal-month {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #92400e;
+  min-width: 130px;
+  text-align: center;
+}
+
+.sch-cal-nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #a16207;
+  padding: 2px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.12s;
+}
+.sch-cal-nav-btn:hover { background: #fde68a; }
+
+.sch-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 8px;
+}
+
+.sch-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #a16207;
+  text-transform: uppercase;
+}
+
+.sch-cal-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  font-size: 0.78rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.sch-cal-day:hover:not(.festivo) { background: #fef9c3; }
+.sch-cal-day.festivo {
+  background: #f59e0b;
+  color: #fff;
+  font-weight: 700;
+}
+.sch-cal-day.festivo:hover { background: #d97706; }

@@ -29,8 +29,69 @@ const FORM_VACIO = {
   dias:      [1, 2, 3, 4, 5],
   fecha:     '',
   tramos:    [{ ...TRAMO_VACIO }],
+  festivos:  [],
   ejecutado: false,
 };
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const DIA_LABELS = ['L','M','X','J','V','S','D'];
+
+function formatFestivo(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  return `${+d} ${MESES_CORTOS[+m - 1]} ${y}`;
+}
+
+function FestivosCalendar({ festivos, onChange }) {
+  const hoy = new Date();
+  const [viewYear,  setViewYear]  = useState(hoy.getFullYear());
+  const [viewMonth, setViewMonth] = useState(hoy.getMonth());
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
+    else setViewMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
+    else setViewMonth(m => m + 1);
+  };
+
+  const daysInMonth  = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDayAdj  = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // 0=Lunes
+
+  const toggleDay = (dateStr) => {
+    onChange(festivos.includes(dateStr)
+      ? festivos.filter(f => f !== dateStr)
+      : [...festivos, dateStr].sort());
+  };
+
+  const cells = Array(firstDayAdj).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  return (
+    <div className="sch-cal">
+      <div className="sch-cal-nav">
+        <button className="sch-cal-nav-btn" onClick={prevMonth}>‹</button>
+        <span className="sch-cal-month">{MESES[viewMonth]} {viewYear}</span>
+        <button className="sch-cal-nav-btn" onClick={nextMonth}>›</button>
+      </div>
+      <div className="sch-cal-grid">
+        {DIA_LABELS.map(d => <span key={d} className="sch-cal-header">{d}</span>)}
+        {cells.map((d, i) => {
+          if (!d) return <span key={`empty-${i}`} />;
+          const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const selected = festivos.includes(dateStr);
+          return (
+            <button key={dateStr}
+              className={`sch-cal-day ${selected ? 'festivo' : ''}`}
+              onClick={() => toggleDay(dateStr)}
+            >{d}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function DiaChip({ dow, activo }) {
   const d = DIAS.find(x => x.dow === dow);
@@ -52,12 +113,13 @@ function migrateSchedule(s) {
 }
 
 export default function ScheduleManager({ onClose }) {
-  const [schedules, setSchedules] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [form,      setForm]      = useState(null);
-  const [editId,    setEditId]    = useState(null);
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState(null);
+  const [schedules,    setSchedules]    = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [form,         setForm]         = useState(null);
+  const [editId,       setEditId]       = useState(null);
+  const [saving,       setSaving]       = useState(false);
+  const [error,        setError]        = useState(null);
+  const [festivosOpen, setFestivosOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -90,9 +152,9 @@ export default function ScheduleManager({ onClose }) {
     load();
   };
 
-  const abrirNuevo  = () => { setForm({ ...FORM_VACIO, tramos: [{ ...TRAMO_VACIO }] }); setEditId(null); setError(null); };
-  const abrirEditar = (s)  => { setForm(migrateSchedule({ ...s })); setEditId(s._id); setError(null); };
-  const cerrarForm  = ()   => setForm(null);
+  const abrirNuevo  = () => { setForm({ ...FORM_VACIO, tramos: [{ ...TRAMO_VACIO }] }); setEditId(null); setError(null); setFestivosOpen(false); };
+  const abrirEditar = (s)  => { setForm(migrateSchedule({ ...s, festivos: s.festivos ?? [] })); setEditId(s._id); setError(null); setFestivosOpen(!!(s.festivos?.length)); };
+  const cerrarForm  = ()   => { setForm(null); setFestivosOpen(false); };
 
   const toggleDia = (dow) => setForm(prev => ({
     ...prev,
@@ -198,8 +260,9 @@ export default function ScheduleManager({ onClose }) {
                       <div className="sch-card-main">
                         <div className="sch-card-nombre">
                           {s.nombre}
-                          {tipo === 'puntual' && <span className="sch-tipo-badge puntual">Puntual</span>}
-                          {s.ejecutado        && <span className="sch-tipo-badge ejecutado">✓ Ejecutado</span>}
+                          {tipo === 'puntual'       && <span className="sch-tipo-badge puntual">Puntual</span>}
+                          {s.ejecutado              && <span className="sch-tipo-badge ejecutado">✓ Ejecutado</span>}
+                          {s.festivos?.length > 0   && <span className="sch-tipo-badge festivos">🗓 {s.festivos.length} festivo{s.festivos.length !== 1 ? 's' : ''}</span>}
                         </div>
 
                         {tipo === 'semanal' ? (
@@ -287,19 +350,58 @@ export default function ScheduleManager({ onClose }) {
                         onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} />
                     </div>
                   ) : (
-                    <div className="sch-form-row">
-                      <label className="sch-label">Días</label>
-                      <div className="sch-dias-selector">
-                        {DIAS.map(d => (
-                          <button
-                            key={d.dow}
-                            className={`sch-dia-btn ${form.dias?.includes(d.dow) ? 'on' : ''}`}
-                            onClick={() => toggleDia(d.dow)}
-                            title={d.nombre}
-                          >{d.label}</button>
-                        ))}
+                    <>
+                      <div className="sch-form-row">
+                        <label className="sch-label">Días</label>
+                        <div className="sch-dias-selector">
+                          {DIAS.map(d => (
+                            <button
+                              key={d.dow}
+                              className={`sch-dia-btn ${form.dias?.includes(d.dow) ? 'on' : ''}`}
+                              onClick={() => toggleDia(d.dow)}
+                              title={d.nombre}
+                            >{d.label}</button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+
+                      <div className="sch-form-row">
+                        <div className="sch-festivos-section">
+                          <label className="sch-tramo-check">
+                            <input type="checkbox"
+                              checked={festivosOpen}
+                              onChange={e => {
+                                setFestivosOpen(e.target.checked);
+                                if (!e.target.checked) setForm(p => ({ ...p, festivos: [] }));
+                              }}
+                            />
+                            Excluir días festivos
+                          </label>
+
+                          {festivosOpen && (
+                            <div className="sch-festivos-panel">
+                              <FestivosCalendar
+                                festivos={form.festivos ?? []}
+                                onChange={dates => setForm(p => ({ ...p, festivos: dates }))}
+                              />
+                              {form.festivos?.length > 0 && (
+                                <div className="sch-festivos-chips">
+                                  {form.festivos.map(f => (
+                                    <span key={f} className="sch-festivo-chip">
+                                      {formatFestivo(f)}
+                                      <button
+                                        className="sch-festivo-chip-del"
+                                        onClick={() => setForm(p => ({ ...p, festivos: p.festivos.filter(x => x !== f) }))}
+                                      >✕</button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   {/* Tramos horarios */}
