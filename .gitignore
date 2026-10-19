@@ -40,3 +40,7 @@ server.log
 # Local
 .vs/
 deploy.zip
+
+# Environment / credenciales — nunca versionar
+.env
+App-CIAT/.env
