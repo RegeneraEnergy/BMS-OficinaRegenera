@@ -170,6 +170,7 @@ function iniciarCron() {
           ? p.fecha === hoy && !p.ejecutado
           : p.dias?.includes(dow);
         if (!coincideHoy) continue;
+        if (tipo === 'semanal' && p.festivos?.includes(hoy)) continue; // festivo / no laborable
 
         const tramos = p.tramos?.length
           ? p.tramos

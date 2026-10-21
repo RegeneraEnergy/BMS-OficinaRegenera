@@ -830,8 +830,8 @@ app.get('/api/schedule', async (req, res) => {
 
 app.post('/api/schedule', async (req, res) => {
   try {
-    const { nombre, activo = true, tipo = 'semanal', dias, fecha, tramos, ejecutado = false } = req.body;
-    const doc = { nombre, activo, tipo, dias, fecha: fecha || null, tramos: tramos || [], ejecutado };
+    const { nombre, activo = true, tipo = 'semanal', dias, fecha, festivos, tramos, ejecutado = false } = req.body;
+    const doc = { nombre, activo, tipo, dias, fecha: fecha || null, festivos: festivos || [], tramos: tramos || [], ejecutado };
     const { insertedId } = await db.collection('schedules').insertOne(doc);
     res.json({ ok: true, _id: insertedId });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -839,11 +839,11 @@ app.post('/api/schedule', async (req, res) => {
 
 app.put('/api/schedule/:id', async (req, res) => {
   try {
-    const { nombre, activo, tipo, dias, fecha, tramos, ejecutado } = req.body;
+    const { nombre, activo, tipo, dias, fecha, festivos, tramos, ejecutado } = req.body;
     console.log(`[PUT /api/schedule/${req.params.id}] nombre="${nombre}" tipo=${tipo} ejecutado=${ejecutado}`);
     const result = await db.collection('schedules').updateOne(
       { _id: new ObjectId(req.params.id) },
-      { $set: { nombre, activo, tipo, dias, fecha: fecha || null, tramos: tramos || [], ejecutado } }
+      { $set: { nombre, activo, tipo, dias, fecha: fecha || null, festivos: festivos || [], tramos: tramos || [], ejecutado } }
     );
     console.log(`[PUT /api/schedule/${req.params.id}] matchedCount=${result.matchedCount} modifiedCount=${result.modifiedCount}`);
     res.json({ ok: true });
