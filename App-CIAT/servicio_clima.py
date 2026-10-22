@@ -66,8 +66,6 @@ TEMP_RET_ADDRESS             = int(os.getenv("TEMP_RET_ADDRESS",              "1
 TEMP_EXT_ADDRESS             = int(os.getenv("TEMP_EXT_ADDRESS",              "2"))
 PRESION_HP_C1_ADDRESS        = int(os.getenv("PRESION_HP_C1_ADDRESS",         "3"))
 PRESION_HP_C2_ADDRESS        = int(os.getenv("PRESION_HP_C2_ADDRESS",         "4"))
-HUM_RET_ADDRESS              = int(os.getenv("HUM_RET_ADDRESS",               "5"))
-HUM_EXT_ADDRESS              = int(os.getenv("HUM_EXT_ADDRESS",               "6"))
 TEMP_IMP_ADDRESS             = int(os.getenv("TEMP_IMP_ADDRESS",              "7"))
 TEMP_MEZCLA_ADDRESS          = int(os.getenv("TEMP_MEZCLA_ADDRESS",           "8"))
 TEMP_AMB_ADDRESS             = int(os.getenv("TEMP_AMB_ADDRESS",              "9"))
@@ -75,9 +73,7 @@ COMPUERTA_ADDRESS            = int(os.getenv("COMPUERTA_ADDRESS",            "10
 TEMP_TCO_ADDRESS             = int(os.getenv("TEMP_TCO_ADDRESS",             "14"))
 SET_POINT_TEMP_FRIO_ADDRESS  = int(os.getenv("SET_POINT_TEMP_FRIO_ADDRESS",  "15"))
 SET_POINT_TEMP_CALOR_ADDRESS = int(os.getenv("SET_POINT_TEMP_CALOR_ADDRESS", "16"))
-SET_POINT_HUM_ADDRESS        = int(os.getenv("SET_POINT_HUM_ADDRESS",        "18"))
 ZONA_MUERTA_TEMP_ADDRESS     = int(os.getenv("ZONA_MUERTA_TEMP_ADDRESS",     "39"))
-ZONA_MUERTA_HUM_ADDRESS      = int(os.getenv("ZONA_MUERTA_HUM_ADDRESS",      "40"))
 SET_ALTA_TEMP_FRIO_ADDRESS   = int(os.getenv("SET_ALTA_TEMP_FRIO_ADDRESS",   "41"))
 SET_BAJA_TEMP_FRIO_ADDRESS   = int(os.getenv("SET_BAJA_TEMP_FRIO_ADDRESS",   "42"))
 SET_ALTA_TEMP_CALOR_ADDRESS  = int(os.getenv("SET_ALTA_TEMP_CALOR_ADDRESS",  "43"))
@@ -519,8 +515,6 @@ SLOW_VAR_DEFS: list[VarDef] = [
     VarDef("presionHPC2Bar",       PRESION_HP_C2_ADDRESS,        0.1, True,  2),
     VarDef("presionLPC1Bar",       PRESION_LP_C1_ADDRESS,        0.1, True,  2),
     VarDef("presionLPC2Bar",       PRESION_LP_C2_ADDRESS,        0.1, True,  2),
-    VarDef("humedadRetornoPct",    HUM_RET_ADDRESS,              0.1, True,  1),
-    VarDef("humedadExteriorPct",   HUM_EXT_ADDRESS,              0.1, True,  1),
     VarDef("aperCompuertaPct",     COMPUERTA_ADDRESS,            0.1, False, 1),
     VarDef("aperCompuertaExtrPct", COMP_EXTR_ADDRESS,            0.1, False, 1),
     VarDef("potTermicakW",         POT_TERMICA_ADDRESS,          0.1, True,  2),
@@ -543,9 +537,7 @@ SLOW_VAR_DEFS: list[VarDef] = [
     VarDef("setPointCalorT13C",    SP_CALOR_T13_ADDRESS,         0.1, True,  1),
     VarDef("setPointFrioT14C",     SP_FRIO_T14_ADDRESS,          0.1, True,  1),
     VarDef("setPointCalorT14C",    SP_CALOR_T14_ADDRESS,         0.1, True,  1),
-    VarDef("setPointHumedadPct",   SET_POINT_HUM_ADDRESS,        0.1, True,  1),
     VarDef("zonaMuertaTempC",      ZONA_MUERTA_TEMP_ADDRESS,     0.1, False, 1),
-    VarDef("zonaMuertaHumPct",     ZONA_MUERTA_HUM_ADDRESS,      0.1, False, 1),
     VarDef("setAltaTempFrioC",     SET_ALTA_TEMP_FRIO_ADDRESS,   0.1, True,  1),
     VarDef("setBajaTempFrioC",     SET_BAJA_TEMP_FRIO_ADDRESS,   0.1, True,  1),
     VarDef("setAltaTempCalorC",    SET_ALTA_TEMP_CALOR_ADDRESS,  0.1, True,  1),
@@ -848,7 +840,6 @@ class ClimateService:
                 f"tRet={metrics.get('tempRetornoC')}°C "
                 f"tExt={metrics.get('tempExteriorC')}°C "
                 f"tImp={metrics.get('tempImpulsionC')}°C "
-                f"hRet={metrics.get('humedadRetornoPct')}%rH "
                 f"CO2={metrics.get('co2Zona1Ppm')}ppm "
                 f"potTotal={metrics.get('potenciaTotalkW')}kW "
                 f"scop={metrics.get('scop')} "
