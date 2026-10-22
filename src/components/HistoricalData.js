@@ -682,7 +682,7 @@ export default function HistoricalData({ canControl = true, liveData }) {
         </div>
       )}
 
-      {showHVACControl     && <HVACControl      onClose={() => setShowHVACControl(false)} maquinaArrancada={liveData?.maquinaArrancada} />}
+      {showHVACControl     && <HVACControl      onClose={() => setShowHVACControl(false)} maquinaArrancada={liveData?.maquinaArrancada} clima={liveData?.clima} />}
       {showScheduleManager && <ScheduleManager  onClose={() => setShowScheduleManager(false)} />}
     </div>
   );

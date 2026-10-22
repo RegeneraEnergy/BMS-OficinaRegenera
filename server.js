@@ -767,11 +767,15 @@ app.post('/api/control/hvac', (req, res) => {
 // Inserta el comando en la colección `consignas_log` con estado 'pendiente'.
 // El agente en la Raspberry Pi (agent-ciat.js) lo leerá, lo ejecutará sobre
 // el equipo CIAT y actualizará el documento con el resultado.
-async function enviarConsigna(config, origen) {
+// `modo` ('frio' | 'calor' | null) no se guarda en hvacConfig: solo viaja en el
+// comando que lo pide, para que un modo antiguo en memoria nunca se reimponga al
+// equipo en una consigna posterior.
+async function enviarConsigna(config, origen, modo = null) {
   const doc = {
     ts:          new Date(),
     origen,                      // 'manual' | 'cron'
     estado:      'pendiente',    // pendiente → ejecutado | error
+    modo,                        // null = no cambiar el modo actual del equipo
     maquina:     config.maquina,
     setpoint:    config.setpoint,
     hysteresis:  config.hysteresis,
@@ -790,15 +794,18 @@ async function enviarConsigna(config, origen) {
 // Llamado por el frontend al pulsar "Aplicar configuración".
 // Actualiza hvacConfig, llama a enviarConsigna() y devuelve el resultado.
 app.post('/api/consignas', async (req, res) => {
-  const { maquina, setpoint, hysteresis, compressors } = req.body;
+  const { maquina, setpoint, hysteresis, compressors, modo } = req.body;
+  if (modo != null && modo !== 'frio' && modo !== 'calor') {
+    return res.status(400).json({ ok: false, error: "modo debe ser 'frio' o 'calor'" });
+  }
   if (typeof maquina    === 'boolean') hvacConfig.maquina    = maquina;
   if (typeof setpoint   === 'number')  hvacConfig.setpoint   = setpoint;
   if (typeof hysteresis === 'number')  hvacConfig.hysteresis = hysteresis;
   if (Array.isArray(compressors) && compressors.length === 4) hvacConfig.compressors = compressors;
 
   try {
-    await enviarConsigna(hvacConfig, 'manual');
-    res.json({ ok: true, config: hvacConfig });
+    const id = await enviarConsigna(hvacConfig, 'manual', modo ?? null);
+    res.json({ ok: true, id, config: hvacConfig });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message, config: hvacConfig });
   }

@@ -44,14 +44,21 @@ const POLL_MS   = parseInt(process.env.POLL_MS)      || 30_000;
 // Direcciones Modbus — base 0 (PDU directo = dirección doc CIAT)
 // modpoll-classic añade +1: doc 120 → modpoll 121, doc 65 → modpoll 66, etc.
 const COIL_MAQUINA   = 65;               // coil — arranque/paro máquina (true = arrancar, false = parar)
-const REG_SETPOINT   = 15;              // holding register — temperatura consigna (×10, modpoll 16)
+const REG_SETPOINT   = 15;              // holding register — consigna de FRÍO (×10, modpoll 16)
+const REG_SETPOINT_CALOR = 16;          // holding register — consigna de CALOR (×10, modpoll 17)
 const REG_HISTERESIS = 39;              // holding register — histéresis simétrica (×10)
 const COIL_COMP      = [330, 331, 332, 333]; // coils — forzar apagado compresores
+const COIL_MODO_CALOR = 13;             // coil — modo calor (servicio_clima.py lo lee como modoCalor)
+const COIL_MODO_FRIO  = 14;             // coil — modo frío  (servicio_clima.py lo lee como modoFrio)
+const COIL_NOT_SYSON  = 188;            // coil — solo lectura: 0 = máquina arrancada, 1 = parada
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ── Estado local de la máquina ────────────────────────────────────────────────
 // Se actualiza con cada comando ejecutado para que el cron pueda mantener
 // el estado correcto en tramos con arrancarMaquina:false
 let estadoActual = {
+  modo:        null,     // 'frio' | 'calor' | null (desconocido hasta el primer comando)
   maquina:     false,
   setpoint:    22.0,
   hysteresis:  1.0,
@@ -78,6 +85,56 @@ async function conectar() {
   }
 }
 
+// ── Modo de funcionamiento (frío / calor) ─────────────────────────────────────
+// Lee los coils 13 (calor) y 14 (frío). Devuelve 'calor' | 'frio' | null si la
+// lectura falla o los dos coils no son coherentes.
+async function leerModo(client) {
+  try {
+    const { data } = await client.readCoils(COIL_MODO_CALOR, 2);
+    const calor = Boolean(data[0]);
+    const frio  = Boolean(data[1]);
+    if (calor && !frio) return 'calor';
+    if (frio && !calor) return 'frio';
+    return null;
+  } catch (_e) {
+    return null;
+  }
+}
+
+// Cambia el modo escribiendo los coils 13/14 y comprueba que el equipo lo refleja.
+// Solo se permite con la máquina parada. Lanza un Error descriptivo si no puede.
+async function cambiarModo(client, destino) {
+  let enMarcha;
+  try {
+    const { data } = await client.readCoils(COIL_NOT_SYSON, 1);
+    enMarcha = !data[0];
+  } catch (e) {
+    throw new Error(`No se pudo comprobar si la máquina está parada antes de cambiar de modo: ${e.message}`);
+  }
+  if (enMarcha) throw new Error('La máquina está en marcha: pásala a paro antes de cambiar de modo.');
+
+  try {
+    // Primero se desactiva el modo contrario y después se activa el nuevo
+    if (destino === 'calor') {
+      await client.writeCoil(COIL_MODO_FRIO,  false);
+      await client.writeCoil(COIL_MODO_CALOR, true);
+    } else {
+      await client.writeCoil(COIL_MODO_CALOR, false);
+      await client.writeCoil(COIL_MODO_FRIO,  true);
+    }
+  } catch (e) {
+    throw new Error(`El equipo rechazó la escritura del modo (coils ${COIL_MODO_CALOR}/${COIL_MODO_FRIO}): ${e.message}`);
+  }
+  console.log(`[agent-ciat] COIL[${COIL_MODO_CALOR}/${COIL_MODO_FRIO}] ← modo ${destino.toUpperCase()}`);
+
+  // El equipo puede tardar un ciclo en reflejarlo: se reintenta unos segundos
+  for (let i = 0; i < 5; i++) {
+    await sleep(1000);
+    if (await leerModo(client) === destino) return;
+  }
+  throw new Error(`El equipo no confirmó el cambio a modo ${destino.toUpperCase()}: los coils ${COIL_MODO_CALOR}/${COIL_MODO_FRIO} no reflejan el cambio (puede que el modo no se seleccione por ahí).`);
+}
+
 // ── Envío al equipo CIAT vía Modbus TCP ───────────────────────────────────────
 async function ejecutarEnCIAT(cmd) {
   const client = new ModbusRTU();
@@ -87,14 +144,23 @@ async function ejecutarEnCIAT(cmd) {
     await client.connectTCP(CIAT_IP, { port: CIAT_PORT });
     client.setID(CIAT_UNIT);
 
+    // Modo frío / calor: se cambia primero, y si falla se aborta el comando entero
+    // para no arrancar la máquina ni escribir consignas en el modo equivocado.
+    // Sin cmd.modo (programador, comandos antiguos) se respeta el modo actual del equipo.
+    const modoPedido = cmd.modo === 'frio' || cmd.modo === 'calor' ? cmd.modo : null;
+    const modoActual = await leerModo(client);
+    if (modoPedido && modoPedido !== modoActual) await cambiarModo(client, modoPedido);
+    const modo = modoPedido ?? modoActual ?? 'frio';
+
     // Arranque / paro — coil 65 (true = arrancar, false = parar)
     await client.writeCoil(COIL_MAQUINA, Boolean(cmd.maquina));
     console.log(`[agent-ciat] COIL[${COIL_MAQUINA}] ← ${cmd.maquina}  (máquina ${cmd.maquina ? 'ARRANQUE' : 'PARO'})`);
 
-    // Temperatura de consigna — registro 15, valor × 10
+    // Temperatura de consigna — registro 15 (frío) o 16 (calor), valor × 10
+    const regSetpoint = modo === 'calor' ? REG_SETPOINT_CALOR : REG_SETPOINT;
     const setpointRaw = Math.round(cmd.setpoint * 10);
-    await client.writeRegister(REG_SETPOINT, setpointRaw);
-    console.log(`[agent-ciat] REG[${REG_SETPOINT}] ← ${setpointRaw}  (${cmd.setpoint}°C)`);
+    await client.writeRegister(regSetpoint, setpointRaw);
+    console.log(`[agent-ciat] REG[${regSetpoint}] ← ${setpointRaw}  (${cmd.setpoint}°C, modo ${modo})`);
 
     // Histéresis — registro 39, valor × 10 (banda simétrica)
     const histRaw = Math.round(cmd.hysteresis * 10);
@@ -109,6 +175,7 @@ async function ejecutarEnCIAT(cmd) {
 
     // Actualizar estado local tras ejecución exitosa
     estadoActual = {
+      modo,
       maquina:     cmd.maquina,
       setpoint:    cmd.setpoint,
       hysteresis:  cmd.hysteresis,

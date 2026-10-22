@@ -9,12 +9,36 @@ const DEFAULT_CONFIG = {
   compressors: [false, false, false, false],
 };
 
+// Modo real del equipo según las últimas lecturas (coils modoCalor / modoFrio)
+function modoRealDe(clima) {
+  if (!clima) return null;
+  const calor = Boolean(clima.modoCalor);
+  const frio  = Boolean(clima.modoFrio);
+  if (calor && !frio) return 'calor';
+  if (frio && !calor) return 'frio';
+  return null;
+}
+
+const MODO_INFO = {
+  frio:  { label: '❄️ Frío',  nombre: 'FRÍO',  consigna: 'setPointTempFrioC'  },
+  calor: { label: '🔥 Calor', nombre: 'CALOR', consigna: 'setPointTempCalorC' },
+};
+
 // maquinaArrancada: estado real del sensor, provisto por el padre via liveData
-export default function HVACControl({ onClose, maquinaArrancada }) {
+// clima: últimas métricas del CIAT (liveData.clima) para conocer el modo real y sus consignas
+export default function HVACControl({ onClose, maquinaArrancada, clima }) {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // null = sin cambio de modo pedido; 'frio' | 'calor' = modo elegido por el usuario
+  const [modoSel, setModoSel] = useState(null);
+  // Seguimiento del último comando enviado: { estado: 'pendiente'|'ejecutado'|'error', error }
+  const [trackId, setTrackId] = useState(null);
+  const [seguimiento, setSeguimiento] = useState(null);
+
+  const modoReal = modoRealDe(clima);
+  const modo     = modoSel ?? modoReal;
   // null = sin dato aún, true = arrancada, false = parada
   const [maquinaReal, setMaquinaReal] = useState(maquinaArrancada ?? null);
 
@@ -66,6 +90,22 @@ export default function HVACControl({ onClose, maquinaArrancada }) {
     setConfig(prev => ({ ...prev, maquina: arrancar }));
   };
 
+  const elegirModo = (destino) => {
+    if (destino === modo) return;
+    const ok = window.confirm(
+      `¿Confirmas el cambio a modo ${MODO_INFO[destino].nombre}?\n\n` +
+      'El cambio solo se puede hacer con la máquina PARADA. Se enviará al pulsar "Aplicar configuración".'
+    );
+    if (!ok) return;
+    setSaved(false);
+    setModoSel(destino === modoReal ? null : destino);
+    // Partir de la consigna que ya tiene el equipo en ese modo, para no escribir un valor ajeno
+    const actual = clima?.[MODO_INFO[destino].consigna];
+    if (typeof actual === 'number') {
+      setConfig(prev => ({ ...prev, setpoint: Math.min(30, Math.max(16, actual)) }));
+    }
+  };
+
   const toggleCompressor = (idx) => {
     const isCurrentlyRunning = !config.compressors[idx];
     if (isCurrentlyRunning) {
@@ -82,20 +122,50 @@ export default function HVACControl({ onClose, maquinaArrancada }) {
     });
   };
 
+  // Tras enviar un comando, consulta el log de consignas hasta que el agente de la Pi
+  // lo marque como ejecutado o con error (el agente revisa la cola cada ~30 s).
+  useEffect(() => {
+    if (!trackId) return undefined;
+    let cancelled = false;
+    const inicio = Date.now();
+    const tick = async () => {
+      try {
+        const res = await apiFetch('/api/consignas/log?limit=10');
+        if (!res.ok) return;
+        const docs = await res.json();
+        const doc  = docs.find(d => String(d._id) === String(trackId));
+        if (cancelled || !doc) return;
+        setSeguimiento({ estado: doc.estado, error: doc.error });
+        if (doc.estado !== 'pendiente') clearInterval(timer);
+      } catch (_e) { /* reintenta en el siguiente ciclo */ }
+      if (Date.now() - inicio > 120_000) clearInterval(timer);
+    };
+    const timer = setInterval(tick, 3000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [trackId]);
+
   const save = async () => {
     setError(null);
     try {
+      // `modo` solo se envía si el usuario lo ha cambiado respecto al modo real del equipo
+      const payload = { ...config };
+      if (modoSel && modoSel !== modoReal) payload.modo = modoSel;
       const res = await apiFetch('/api/consignas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `HTTP ${res.status}`);
       }
+      const body = await res.json().catch(() => ({}));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      if (body.id) {
+        setSeguimiento({ estado: 'pendiente', error: null });
+        setTrackId(body.id);
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -154,9 +224,37 @@ export default function HVACControl({ onClose, maquinaArrancada }) {
               </div>
             </section>
 
+            {/* Modo de funcionamiento */}
+            <section className="hvac-section">
+              <h3 className="hvac-section-title">Modo de funcionamiento</h3>
+              <div className="hvac-modo-row">
+                <div className="hvac-modo-btns">
+                  {['frio', 'calor'].map(m => (
+                    <button
+                      key={m}
+                      className={`hvac-modo-btn ${m} ${modo === m ? 'on' : ''}`}
+                      disabled={maquinaReal === true}
+                      onClick={() => elegirModo(m)}
+                    >{MODO_INFO[m].label}</button>
+                  ))}
+                </div>
+                <span className="hvac-hint">
+                  {maquinaReal === true
+                    ? 'Para la máquina antes de cambiar de modo.'
+                    : modoSel
+                      ? `Se cambiará a modo ${MODO_INFO[modoSel].nombre} al aplicar la configuración.`
+                      : modoReal
+                        ? `Modo actual del equipo: ${MODO_INFO[modoReal].nombre}.`
+                        : 'Modo actual del equipo desconocido.'}
+                </span>
+              </div>
+            </section>
+
             {/* Temperatura de consigna */}
             <section className="hvac-section">
-              <h3 className="hvac-section-title">Temperatura de Consigna</h3>
+              <h3 className="hvac-section-title">
+                Temperatura de Consigna{modo ? ` (${MODO_INFO[modo].nombre.toLowerCase()})` : ''}
+              </h3>
               <div className="hvac-row">
                 <div className="hvac-field">
                   <label className="hvac-label">Consigna</label>
@@ -232,6 +330,15 @@ export default function HVACControl({ onClose, maquinaArrancada }) {
         <div className="hvac-modal-footer">
           {error && <span className="hvac-error">Error: {error}</span>}
           {saved && <span className="hvac-success">✓ Configuración guardada</span>}
+          {!saved && seguimiento?.estado === 'pendiente' && (
+            <span className="hvac-hint">⏳ Enviado, esperando al equipo…</span>
+          )}
+          {!saved && seguimiento?.estado === 'ejecutado' && (
+            <span className="hvac-success">✓ Aplicado en el equipo</span>
+          )}
+          {!saved && seguimiento?.estado === 'error' && (
+            <span className="hvac-error">✗ El equipo no lo aplicó: {seguimiento.error}</span>
+          )}
           <div className="hvac-footer-btns">
             <button className="hvac-btn-cancel" onClick={onClose}>Cancelar</button>
             <button className="hvac-btn-save" onClick={save} disabled={loading}>

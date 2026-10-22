@@ -506,3 +506,29 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ── Modo frío / calor ───────────────────────────────────────────────────── */
+.hvac-modo-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hvac-modo-btns {
+  display: flex;
+  gap: 10px;
+}
+.hvac-modo-btn {
+  padding: 10px 22px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.hvac-modo-btn:hover:not(:disabled):not(.on) { background: #f1f5f9; }
+.hvac-modo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.hvac-modo-btn.frio.on  { background: #0891b2; border-color: #0891b2; color: #fff; }
+.hvac-modo-btn.calor.on { background: #ea580c; border-color: #ea580c; color: #fff; }
