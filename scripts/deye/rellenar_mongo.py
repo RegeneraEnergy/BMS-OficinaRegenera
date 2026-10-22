@@ -21,14 +21,8 @@ import requests
 from datetime import datetime, timedelta, date, timezone
 
 # ── Configuración ──────────────────────────────────────────────────────────────
-BASE_URL   = "https://eu1-developer.deyecloud.com/v1.0"
-APP_ID     = "202602022676008"
-APP_SECRET = "5033209449b142fee1a533719b306d3b"
-EMAIL      = "ecuenca@regeneraenergy.es"
-PASSWORD   = "bS6LLsNE@r!Yvns"
-COMPANY_ID = "10366421"
-DEVICE_SN  = "2211137014"
-DEVICE_ID  = f"dev_deye_{DEVICE_SN}"
+# Credenciales y datos del inversor: se leen de scripts/deye/.env (ver .env.example)
+from deye_config import BASE_URL, APP_ID, APP_SECRET, EMAIL, PASSWORD, COMPANY_ID, DEVICE_SN, DEVICE_ID
 
 MONGO_URI  = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME    = os.environ.get("DB_NAME",   "Oficina-REGENERA")

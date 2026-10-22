@@ -44,3 +44,47 @@ deploy.zip
 # Environment / credenciales — nunca versionar
 .env
 App-CIAT/.env
+
+# ── Secretos y configuración local — NUNCA versionar ─────────────────────────
+# OJO: .gitignore solo evita añadir archivos NUEVOS. Lo que ya está versionado
+# (o en el historial) hay que sacarlo del repositorio y rotar la credencial.
+# Variables de entorno (se permiten solo las plantillas *.example)
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+*.env
+# Claves y certificados
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+id_rsa*
+id_ed25519*
+# Credenciales de servicios (Azure, GitHub, DeyeCloud, Shelly…)
+credentials*.json
+service-account*.json
+azure-credentials*
+publish-profile*
+*.publishsettings
+secrets/
+**/secrets.*
+# Configuración con valores reales de cada máquina (la Pi, el servidor…)
+*.local.js
+*.local.py
+*.local.json
+ecosystem.local.config.js
+ecosystem.pi.local.config.js
+config.local.*
+# Copias y exportaciones locales
+*.bak
+*.orig
+ciat_variables_report.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
