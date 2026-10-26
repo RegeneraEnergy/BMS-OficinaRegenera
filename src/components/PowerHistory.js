@@ -442,21 +442,11 @@ export default function PowerHistory() {
                 dataKey={s.key}
                 name={STACK_LABELS[s.key] ?? s.label}
                 stroke={s.color}
-                strokeWidth={1.5}
+                strokeWidth={s.key === 'gridKW' ? 3 : 1.5}
                 dot={false}
                 connectNulls={false}
               />
             ))}
-            <Line
-              type="monotone"
-              dataKey="neto"
-              name="Neto"
-              stroke="#1e293b"
-              strokeWidth={2.5}
-              strokeDasharray="6 3"
-              dot={false}
-              connectNulls={false}
-            />
           </LineChart>
         </ResponsiveContainer>
       );
