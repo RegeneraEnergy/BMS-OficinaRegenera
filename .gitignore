@@ -36,6 +36,8 @@ server.log
 *.png
 !public/*.png
 !src/assets/*.png
+!src/assets/*.jpg
+!src/assets/*.jpeg
 
 # Local
 .vs/

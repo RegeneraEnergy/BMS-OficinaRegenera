@@ -198,9 +198,14 @@
   height: 420px;
   object-fit: cover;
   object-position: center;
-  border-radius: 12px;
-  filter: drop-shadow(0 10px 22px rgba(0,0,0,0.22));
   display: block;
+  /* Cortes en esquinas estilo plano técnico — sin border-radius ni sombra */
+  clip-path: polygon(
+    18px 0%, calc(100% - 18px) 0%,
+    100% 18px, 100% calc(100% - 18px),
+    calc(100% - 18px) 100%, 18px 100%,
+    0% calc(100% - 18px), 0% 18px
+  );
 }
 
 /* Interior conditions — overlaid on the building body */

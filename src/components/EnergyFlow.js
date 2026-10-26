@@ -1,6 +1,6 @@
 import React from 'react';
 import './EnergyFlow.css';
-import buildingImg from '../assets/edificio.png';
+import buildingImg from '../assets/edificio.jpg';
 
 /* ─── Dot that travels along a SVG path ─── */
 function AnimatedDot({ path, color, duration, delay = 0, reverse = false }) {
