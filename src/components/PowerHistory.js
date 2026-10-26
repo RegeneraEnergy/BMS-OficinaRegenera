@@ -304,8 +304,16 @@ export default function PowerHistory() {
   const energyMode   = ENERGY_GRANULARITIES.has(granularity);
   const powerUnit    = energyMode ? 'kWh' : 'kW';
 
-  // stackData: el criterio de signos ya está aplicado en mergeDatasets; se usa data directamente.
-  const stackData = data;
+  // stackData: añade demandaKW = gridKW − pvKW − batteryKW (balance del edificio).
+  const stackData = useMemo(() => data.map(r => {
+    const grid = r.gridKW    ?? null;
+    const pv   = r.pvKW      ?? null;
+    const batt = r.batteryKW ?? null;
+    const demandaKW = (grid !== null || pv !== null || batt !== null)
+      ? +((grid ?? 0) - (pv ?? 0) - (batt ?? 0)).toFixed(3)
+      : null;
+    return { ...r, demandaKW };
+  }), [data]);
 
   /* ── Renderizado del gráfico ─────────────────────────────────────────────── */
   const commonXAxis = (
@@ -424,11 +432,21 @@ export default function PowerHistory() {
                 dataKey={s.key}
                 name={STACK_LABELS[s.key] ?? s.label}
                 stroke={s.color}
-                strokeWidth={s.key === 'gridKW' ? 3 : 1.5}
+                strokeWidth={1.5}
                 dot={false}
                 connectNulls={false}
               />
             ))}
+            <Line
+              key="demandaKW"
+              type="monotone"
+              dataKey="demandaKW"
+              name="Demanda edificio"
+              stroke="#ef4444"
+              strokeWidth={3}
+              dot={false}
+              connectNulls={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       );
