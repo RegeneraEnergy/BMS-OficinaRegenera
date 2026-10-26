@@ -67,26 +67,25 @@ export default function EnergyFlow({ data }) {
               Node centers (CSS → SVG):
                 FV panel  : left 13%  top 13%  → SVG (130, 78)
                 Grid      : left 11%  top 57%  → SVG (110, 342)
-                Building  : left 50%  top 38%  → SVG (500, 228)  ← hub
+                Building  : left 50%  top 52%  → SVG (500, 312)  ← hub
                 Battery   : left 83%  top 50%  → SVG (830, 300)
-                Clima     : left 66%  top  6%  → SVG (660, 36)
+                Clima     : left 66%  top 16%  → SVG (660, 96)
 
               Connection endpoints on building (approx at 1200 px container):
-                Building left wall  ~  SVG x 405, y 265
-                Building right wall ~  SVG x 595, y 265
-                Building roof-left  ~  SVG x 435, y 148
-                Building roof-right ~  SVG x 575, y 148
-                Building bottom     ~  SVG x 500, y 382
+                Building left wall  ~  SVG x 405, y 340
+                Building right wall ~  SVG x 595, y 340
+                Building roof-left  ~  SVG x 440, y 200
+                Building roof-right ~  SVG x 570, y 200
             */}
 
             {/* FV → Building roof (left side) */}
-            <path id="pvToOffice"    d="M 195 78  C 310 78  380 120 435 152" />
+            <path id="pvToOffice"    d="M 195 78  C 310 78  380 150 440 200" />
             {/* Grid → Building left wall */}
-            <path id="gridToOffice"  d="M 175 342 C 290 338 365 300 405 272" />
+            <path id="gridToOffice"  d="M 175 342 C 290 340 360 340 405 340" />
             {/* Building right wall → Battery */}
-            <path id="officeToBat"   d="M 595 268 C 665 264 735 290 768 298" />
+            <path id="officeToBat"   d="M 595 340 C 660 338 720 310 768 298" />
             {/* Building roof-right → Clima (HVAC) */}
-            <path id="officeToClima" d="M 575 148 C 600 130 630 105 660 96" />
+            <path id="officeToClima" d="M 570 200 C 600 160 630 120 660 96" />
           </defs>
 
           {/* PV → Office */}
@@ -195,7 +194,7 @@ export default function EnergyFlow({ data }) {
         </div>
 
         {/* ③ Building — center hub */}
-        <div className="node" style={{ top: '38%', left: '50%' }}>
+        <div className="node building-node" style={{ top: '52%', left: '50%' }}>
           <div className="office-building">
 
             {/* Interior conditions overlay ON the building */}
@@ -227,7 +226,6 @@ export default function EnergyFlow({ data }) {
                 <span className="office-value">{consumoOficina.toFixed(2)}</span>
                 <span className="unit">kW</span>
               </div>
-              <div className="office-sublabel">Consumo total</div>
             </div>
           </div>
         </div>

@@ -183,8 +183,11 @@
 /* ═══════════════════════════════
    OFFICE BUILDING HUB
 ═══════════════════════════════ */
+/* Building node sits below the SVG overlay so arrows pass over the photo */
+.building-node { z-index: 2; }
+
 .office-building {
-  position: relative;     /* needed for interior-overlay */
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -194,12 +197,13 @@
   filter: drop-shadow(0 10px 22px rgba(0,0,0,0.18));
 }
 .building-photo {
-  width: 380px;
-  height: 420px;
+  width: 430px;
+  height: 470px;
   object-fit: cover;
-  object-position: center;
+  /* Recorta cielo por arriba: 65% = focal point hacia abajo */
+  object-position: center 65%;
   display: block;
-  /* Cortes en esquinas estilo plano técnico — sin border-radius ni sombra */
+  /* Cortes en esquinas estilo plano técnico */
   clip-path: polygon(
     18px 0%, calc(100% - 18px) 0%,
     100% 18px, 100% calc(100% - 18px),
@@ -211,7 +215,7 @@
 /* Interior conditions — overlaid on the building body */
 .interior-overlay {
   position: absolute;
-  top: 115px;                   /* over the upper floor windows */
+  top: 130px;                   /* over the upper floor windows */
   left: 50%;
   transform: translateX(-50%);
   background: rgba(255,255,255,0.90);
@@ -253,17 +257,21 @@
 }
 .air-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
-/* Consumption badge below building */
+/* Consumo badge — encima de la cristalera */
 .office-data-badge {
-  background: rgba(255,255,255,0.93);
+  position: absolute;
+  bottom: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: rgba(255,255,255,0.88);
   backdrop-filter: blur(12px);
   border: 1.5px solid rgba(14,165,233,0.38);
-  border-radius: 12px;
-  padding: 8px 22px;
+  border-radius: 10px;
+  padding: 6px 20px;
   text-align: center;
-  box-shadow: 0 4px 16px rgba(14,165,233,0.12);
-  min-width: 170px;
-  margin-top: -2px;
+  box-shadow: 0 3px 14px rgba(14,165,233,0.15);
+  white-space: nowrap;
 }
 .office-label       { font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
 .office-consumption { font-size: 1.5rem; font-weight: 800; color: #1e293b;
