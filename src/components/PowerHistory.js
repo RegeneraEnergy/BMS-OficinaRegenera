@@ -305,16 +305,25 @@ export default function PowerHistory() {
   const energyMode   = ENERGY_GRANULARITIES.has(granularity);
   const powerUnit    = energyMode ? 'kWh' : 'kW';
 
-  // Datos con criterio de signos para vista apilada:
-  // consumo = positivo, generación = negativo.
-  // FV: se invierte (generación → negativo).
-  // Batería: se invierte (descarga=generación → negativo; carga=consumo → positivo).
-  // Red y Clima: se mantiene (consumo = positivo).
-  const stackData = useMemo(() => data.map(r => ({
-    ...r,
-    pvKW:      r.pvKW      != null ? -r.pvKW      : null,
-    batteryKW: r.batteryKW != null ? -r.batteryKW : null,
-  })), [data]);
+  // Datos con criterio consumo+ / generación−:
+  //   FV y batería se invierten; red y clima se mantienen.
+  //   Campo 'neto' = suma de todos los valores transformados de las series activas.
+  const stackData = useMemo(() => {
+    const activeKeys = new Set(activeSeries.map(s => s.key));
+    return data.map(r => {
+      const t = {
+        ...r,
+        pvKW:      r.pvKW      != null ? -r.pvKW      : null,
+        batteryKW: r.batteryKW != null ? -r.batteryKW : null,
+      };
+      let sum = 0; let hasAny = false;
+      for (const k of ['pvKW', 'gridKW', 'batteryKW', 'climaKW']) {
+        if (activeKeys.has(k) && t[k] != null) { sum += t[k]; hasAny = true; }
+      }
+      t.neto = hasAny ? +sum.toFixed(3) : null;
+      return t;
+    });
+  }, [data, activeSeries]);
 
   /* ── Renderizado del gráfico ─────────────────────────────────────────────── */
   const commonXAxis = (
@@ -413,30 +422,42 @@ export default function PowerHistory() {
 
     if (chartType === 'stack') {
       const STACK_LABELS = {
-        pvKW:      'FV (generación −)',
-        batteryKW: 'Batería (descarga −)',
+        pvKW:      'FV (−)',
+        batteryKW: 'Batería (−descarga / +carga)',
         gridKW:    'Red eléctrica',
         climaKW:   'Climatización',
       };
       return (
         <ResponsiveContainer width="100%" height={340}>
-          <BarChart data={stackData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+          <LineChart data={stackData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
             {commonGrid}
             {commonXAxis}
             <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => `${v} ${powerUnit}`} width={70} />
             <Tooltip content={<PowerTooltip unit={powerUnit} />} />
             {commonLegend}
             {activeSeries.map(s => (
-              <Bar
+              <Line
                 key={s.key}
+                type="monotone"
                 dataKey={s.key}
                 name={STACK_LABELS[s.key] ?? s.label}
-                fill={s.color}
-                stackId="stack"
-                maxBarSize={32}
+                stroke={s.color}
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls={false}
               />
             ))}
-          </BarChart>
+            <Line
+              type="monotone"
+              dataKey="neto"
+              name="Neto"
+              stroke="#1e293b"
+              strokeWidth={2.5}
+              strokeDasharray="6 3"
+              dot={false}
+              connectNulls={false}
+            />
+          </LineChart>
         </ResponsiveContainer>
       );
     }
@@ -565,7 +586,7 @@ export default function PowerHistory() {
           <button className="ph-btn-24h"   onClick={applyLast24h}>Últimas 24h</button>
         </div>
 
-        {chartType !== 'pie' && chartType !== 'stack' && (
+        {chartType !== 'pie' && (
           <div className="ph-gran-row">
             {GRANULARITIES.map(g => (
               <button
