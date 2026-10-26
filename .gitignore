@@ -45,6 +45,9 @@ deploy.zip
 .env
 App-CIAT/.env
 
+# Código que corre exclusivamente en la Raspberry Pi — no versionar
+App-CIAT/
+
 # ── Secretos y configuración local — NUNCA versionar ─────────────────────────
 # OJO: .gitignore solo evita añadir archivos NUEVOS. Lo que ya está versionado
 # (o en el historial) hay que sacarlo del repositorio y rotar la credencial.
