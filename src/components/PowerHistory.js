@@ -11,12 +11,13 @@ import apiFetch from '../apiFetch';
 import './PowerHistory.css';
 
 /* ── Configuración de series ───────────────────────────────────────────────── */
+// Criterio de signos: consumo positivo, generación negativa.
+// sign: -1 → el valor crudo se niega al almacenarse (FV genera → negativo; batería descarga → negativo).
 const SERIES = [
-  // pvKW: suma de strings DC (pv.powerPv1W…4W), no inverter.totalW que incluye descarga batería
-  { key: 'pvKW',      label: 'Generación FV',  color: '#f59e0b', pvStrings: true,               scale: 1/1000 },
-  { key: 'gridKW',    label: 'Red eléctrica',   color: '#3b82f6', deyeField: 'grid.totalW',      scale: 1/1000 },
-  { key: 'batteryKW', label: 'Batería',         color: '#10b981', deyeField: 'battery.powerW',   scale: 1/1000 },
-  { key: 'climaKW',   label: 'Climatización',   color: '#8b5cf6', deyeField: null,               scale: 1      },
+  { key: 'pvKW',      label: 'Generación FV',  color: '#f59e0b', pvStrings: true,               scale: 1/1000, sign: -1 },
+  { key: 'gridKW',    label: 'Red eléctrica',   color: '#3b82f6', deyeField: 'grid.totalW',      scale: 1/1000, sign:  1 },
+  { key: 'batteryKW', label: 'Batería',         color: '#10b981', deyeField: 'battery.powerW',   scale: 1/1000, sign: -1 },
+  { key: 'climaKW',   label: 'Climatización',   color: '#8b5cf6', deyeField: null,               scale: 1,      sign:  1 },
 ];
 
 const CHART_TYPES = [
@@ -77,9 +78,9 @@ function mergeDatasets(deyeRows, ciatRows) {
       if (s.pvStrings) {
         const dcW = (d['pv.powerPv1W'] ?? 0) + (d['pv.powerPv2W'] ?? 0)
                   + (d['pv.powerPv3W'] ?? 0) + (d['pv.powerPv4W'] ?? 0);
-        entry[s.key] = +(dcW * s.scale).toFixed(3);
+        entry[s.key] = +(dcW * s.scale * s.sign).toFixed(3);
       } else if (s.deyeField && d[s.deyeField] != null) {
-        entry[s.key] = +(d[s.deyeField] * s.scale).toFixed(3);
+        entry[s.key] = +(d[s.deyeField] * s.scale * s.sign).toFixed(3);
       }
     }
     map.set(d.datetime, entry);
@@ -138,28 +139,26 @@ function computeNestedPie(data) {
     for (const s of SERIES) {
       const v = row[s.key];
       if (v == null) continue;
-      // Batería conserva el signo (positivo=descarga, negativo=carga).
-      // El resto se acumula en valor absoluto.
-      sums[s.key] = (sums[s.key] ?? 0) + (s.key === 'batteryKW' ? v : Math.abs(v));
+      sums[s.key] = (sums[s.key] ?? 0) + v;
     }
   }
-  const kwh      = key => +(sums[key] ?? 0).toFixed(1);
-  const pvKWh    = kwh('pvKW');
-  const gridKWh  = kwh('gridKW');
-  const climaKWh = kwh('climaKW');
-  // Invertimos el signo: si la suma es negativa (carga neta) → positivo = consumo.
-  // Si es positiva (descarga neta) → negativo → se filtra del anillo interior.
-  const battKWh  = +(-(sums.batteryKW ?? 0)).toFixed(1);
-  const otrosKWh = +Math.max(0, pvKWh + gridKWh - climaKWh - battKWh).toFixed(1);
+  // pvKW ≤ 0 (genera), batteryKW < 0 (descarga), gridKW > 0 (importa)
+  const pvKWh        = +Math.abs(sums.pvKW     ?? 0).toFixed(1);
+  const gridImport   = +Math.max(0,  sums.gridKW    ?? 0).toFixed(1);
+  const climaKWh     = +Math.max(0,  sums.climaKW   ?? 0).toFixed(1);
+  const battCharge   = +Math.max(0,  sums.batteryKW ?? 0).toFixed(1);
+  const battDischarge= +Math.max(0, -(sums.batteryKW ?? 0)).toFixed(1);
+  const otrosKWh     = +Math.max(0, pvKWh + gridImport + battDischarge - climaKWh - battCharge).toFixed(1);
   return {
     inner: [
-      { name: 'Climatización',  value: climaKWh, color: '#8b5cf6' },
-      { name: 'Batería',        value: battKWh,  color: '#10b981' },
-      { name: 'Otros consumos', value: otrosKWh, color: '#64748b' },
+      { name: 'Climatización',  value: climaKWh,      color: '#8b5cf6' },
+      { name: 'Carga batería',  value: battCharge,    color: '#10b981' },
+      { name: 'Otros consumos', value: otrosKWh,      color: '#64748b' },
     ].filter(d => d.value > 0),
     outer: [
-      { name: 'Generación FV', value: pvKWh,   color: '#f59e0b' },
-      { name: 'Red eléctrica', value: gridKWh, color: '#3b82f6' },
+      { name: 'Generación FV',  value: pvKWh,         color: '#f59e0b' },
+      { name: 'Red eléctrica',  value: gridImport,    color: '#3b82f6' },
+      { name: 'Descarga bat.',  value: battDischarge, color: '#10b981' },
     ].filter(d => d.value > 0),
   };
 }
@@ -305,25 +304,8 @@ export default function PowerHistory() {
   const energyMode   = ENERGY_GRANULARITIES.has(granularity);
   const powerUnit    = energyMode ? 'kWh' : 'kW';
 
-  // Datos con criterio consumo+ / generación−:
-  //   FV y batería se invierten; red y clima se mantienen.
-  //   Campo 'neto' = suma de todos los valores transformados de las series activas.
-  const stackData = useMemo(() => {
-    const activeKeys = new Set(activeSeries.map(s => s.key));
-    return data.map(r => {
-      const t = {
-        ...r,
-        pvKW:      r.pvKW      != null ? -r.pvKW      : null,
-        batteryKW: r.batteryKW != null ? -r.batteryKW : null,
-      };
-      let sum = 0; let hasAny = false;
-      for (const k of ['pvKW', 'gridKW', 'batteryKW', 'climaKW']) {
-        if (activeKeys.has(k) && t[k] != null) { sum += t[k]; hasAny = true; }
-      }
-      t.neto = hasAny ? +sum.toFixed(3) : null;
-      return t;
-    });
-  }, [data, activeSeries]);
+  // stackData: el criterio de signos ya está aplicado en mergeDatasets; se usa data directamente.
+  const stackData = data;
 
   /* ── Renderizado del gráfico ─────────────────────────────────────────────── */
   const commonXAxis = (
