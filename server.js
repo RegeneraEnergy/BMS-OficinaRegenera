@@ -302,7 +302,10 @@ app.get('/api/live', async (req, res) => {
     const cm = ciat?.metrics?.clima ?? {};
 
     const deyeFlat  = flattenDoc(dm);
-    const pvActiveW = dm.inverter?.totalW ?? 0;
+    // Suma de strings DC (va a 0 de noche, a diferencia de inverter.totalW que
+    // incluye descarga de batería y produciría falsa generación nocturna).
+    const pvActiveW = (dm.pv?.powerPv1W ?? 0) + (dm.pv?.powerPv2W ?? 0)
+                    + (dm.pv?.powerPv3W ?? 0) + (dm.pv?.powerPv4W ?? 0);
     const climakW   = power?.metrics?.clima?.potenciaTotalkW ?? cm.potenciaTotalkW ?? 0;
 
     // metrics.clima.notSyson1: 0 = máquina arrancada, 1 = máquina parada
@@ -367,7 +370,7 @@ app.get('/api/historical', async (req, res) => {
       return {
         time:             new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
         datetime:         new Date(ts).toISOString(),
-        pvGeneration:     +((dm.pv?.totalSolarW ?? 0) / 1000).toFixed(2),
+        pvGeneration:     +(((dm.pv?.powerPv1W ?? 0) + (dm.pv?.powerPv2W ?? 0) + (dm.pv?.powerPv3W ?? 0) + (dm.pv?.powerPv4W ?? 0)) / 1000).toFixed(2),
         totalConsumption: +((dm.grid?.totalW ?? 0) / 1000).toFixed(2),
         climaConsumption: +(cm.potenciaTotalkW  ?? 0).toFixed(2),
         gridDemand:       +((dm.grid?.totalW ?? 0) / 1000).toFixed(2),

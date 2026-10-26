@@ -12,17 +12,19 @@ import './PowerHistory.css';
 
 /* ── Configuración de series ───────────────────────────────────────────────── */
 const SERIES = [
-  { key: 'pvKW',      label: 'Generación FV',  color: '#f59e0b', deyeField: 'inverter.totalW',  scale: 1/1000 },
+  // pvKW: suma de strings DC (pv.powerPv1W…4W), no inverter.totalW que incluye descarga batería
+  { key: 'pvKW',      label: 'Generación FV',  color: '#f59e0b', pvStrings: true,               scale: 1/1000 },
   { key: 'gridKW',    label: 'Red eléctrica',   color: '#3b82f6', deyeField: 'grid.totalW',      scale: 1/1000 },
   { key: 'batteryKW', label: 'Batería',         color: '#10b981', deyeField: 'battery.powerW',   scale: 1/1000 },
   { key: 'climaKW',   label: 'Climatización',   color: '#8b5cf6', deyeField: null,               scale: 1      },
 ];
 
 const CHART_TYPES = [
-  { id: 'area', label: 'Área'     },
-  { id: 'line', label: 'Línea'    },
-  { id: 'bar',  label: 'Barras'   },
-  { id: 'pie',  label: 'Sectores' },
+  { id: 'area',  label: 'Área'     },
+  { id: 'line',  label: 'Línea'    },
+  { id: 'bar',   label: 'Barras'   },
+  { id: 'stack', label: 'Apilado'  },
+  { id: 'pie',   label: 'Sectores' },
 ];
 
 const GRANULARITIES = [
@@ -72,7 +74,11 @@ function mergeDatasets(deyeRows, ciatRows) {
   for (const d of deyeRows) {
     const entry = { datetime: d.datetime };
     for (const s of SERIES) {
-      if (s.deyeField && d[s.deyeField] != null) {
+      if (s.pvStrings) {
+        const dcW = (d['pv.powerPv1W'] ?? 0) + (d['pv.powerPv2W'] ?? 0)
+                  + (d['pv.powerPv3W'] ?? 0) + (d['pv.powerPv4W'] ?? 0);
+        entry[s.key] = +(dcW * s.scale).toFixed(3);
+      } else if (s.deyeField && d[s.deyeField] != null) {
         entry[s.key] = +(d[s.deyeField] * s.scale).toFixed(3);
       }
     }
@@ -256,8 +262,8 @@ export default function PowerHistory() {
 
   function handleChartType(type) {
     setChartType(type);
-    if (type === 'pie') {
-      fetchData(appliedFrom, appliedTo, '1h');
+    if (type === 'pie' || type === 'stack') {
+      fetchData(appliedFrom, appliedTo, granularity);
     } else if (chartType === 'pie') {
       fetchData(appliedFrom, appliedTo, granularity);
     }
@@ -298,6 +304,17 @@ export default function PowerHistory() {
   const nestedPie    = useMemo(() => computeNestedPie(data), [data]);
   const energyMode   = ENERGY_GRANULARITIES.has(granularity);
   const powerUnit    = energyMode ? 'kWh' : 'kW';
+
+  // Datos con criterio de signos para vista apilada:
+  // consumo = positivo, generación = negativo.
+  // FV: se invierte (generación → negativo).
+  // Batería: se invierte (descarga=generación → negativo; carga=consumo → positivo).
+  // Red y Clima: se mantiene (consumo = positivo).
+  const stackData = useMemo(() => data.map(r => ({
+    ...r,
+    pvKW:      r.pvKW      != null ? -r.pvKW      : null,
+    batteryKW: r.batteryKW != null ? -r.batteryKW : null,
+  })), [data]);
 
   /* ── Renderizado del gráfico ─────────────────────────────────────────────── */
   const commonXAxis = (
@@ -390,6 +407,36 @@ export default function PowerHistory() {
             </Pie>
             <Tooltip content={<PieTooltip />} />
           </PieChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    if (chartType === 'stack') {
+      const STACK_LABELS = {
+        pvKW:      'FV (generación −)',
+        batteryKW: 'Batería (descarga −)',
+        gridKW:    'Red eléctrica',
+        climaKW:   'Climatización',
+      };
+      return (
+        <ResponsiveContainer width="100%" height={340}>
+          <BarChart data={stackData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+            {commonGrid}
+            {commonXAxis}
+            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => `${v} ${powerUnit}`} width={70} />
+            <Tooltip content={<PowerTooltip unit={powerUnit} />} />
+            {commonLegend}
+            {activeSeries.map(s => (
+              <Bar
+                key={s.key}
+                dataKey={s.key}
+                name={STACK_LABELS[s.key] ?? s.label}
+                fill={s.color}
+                stackId="stack"
+                maxBarSize={32}
+              />
+            ))}
+          </BarChart>
         </ResponsiveContainer>
       );
     }
@@ -518,7 +565,7 @@ export default function PowerHistory() {
           <button className="ph-btn-24h"   onClick={applyLast24h}>Últimas 24h</button>
         </div>
 
-        {chartType !== 'pie' && (
+        {chartType !== 'pie' && chartType !== 'stack' && (
           <div className="ph-gran-row">
             {GRANULARITIES.map(g => (
               <button
